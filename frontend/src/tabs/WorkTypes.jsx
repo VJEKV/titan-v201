@@ -8,7 +8,7 @@ import KpiRow from '../components/KpiRow';
 import SectionTitle from '../components/SectionTitle';
 import HeatmapTable from '../components/HeatmapTable';
 import Card from '../components/Card';
-import ChartSettings, { useChartSettings } from '../components/ChartSettings';
+import ChartSettings, { useChartSettings, getColorsForChart } from '../components/ChartSettings';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "0";
@@ -51,30 +51,35 @@ export default function WorkTypes() {
 
   const { kpi, types_data, monthly } = data;
   const sortedByCount = [...types_data].sort((a, b) => b.count - a.count);
-  const colors = cs.paletteColors;
+  const _rev = cs._rev;
   const fsz = cs.fontSizes;
   const fontFamily = cs.font;
 
   /** Рендер бублика/пирога */
   const renderDonut = () => {
+    const colors = getColorsForChart('wt-donut');
     const inner = donutType === 'pie' ? 0 : 140;
+    const RADIAN = Math.PI / 180;
+    const showLabelsOnChart = types_data.length <= 5;
     return (
       <ResponsiveContainer width="100%" height={620}>
         <PieChart>
           <Pie data={types_data} dataKey="fact" nameKey="name" cx="50%" cy="50%"
             innerRadius={inner} outerRadius={230} paddingAngle={2}
-            label={({ name, percent, cx: pcx, cy: pcy, midAngle, outerRadius: oR }) => {
-              const RADIAN = Math.PI / 180;
+            label={showLabelsOnChart ? ({ name, percent, cx: pcx, cy: pcy, midAngle, outerRadius: oR, startAngle, endAngle }) => {
+              const angle = Math.abs(endAngle - startAngle);
+              if (angle < 15) return null;
               const radius = oR + 30;
               const x = pcx + radius * Math.cos(-midAngle * RADIAN);
               const y = pcy + radius * Math.sin(-midAngle * RADIAN);
+              const displayName = name && name.length > 20 ? name.slice(0, 20) + '...' : (name || '');
               return (
                 <text x={x} y={y} fill={C.text} fontSize={fsz.tick} fontFamily={fontFamily} textAnchor={x > pcx ? 'start' : 'end'} dominantBaseline="central">
-                  {name || ''} {(percent*100).toFixed(0)}%
+                  {displayName} {(percent*100).toFixed(0)}%
                 </text>
               );
-            }}
-            labelLine={{ stroke: C.text, strokeWidth: 1 }}>
+            } : false}
+            labelLine={showLabelsOnChart ? { stroke: C.muted, strokeWidth: 1 } : false}>
             {types_data.map((_, i) => (
               <Cell key={i} fill={colors[i % colors.length]} stroke={C.bg} strokeWidth={2} />
             ))}
@@ -88,6 +93,8 @@ export default function WorkTypes() {
 
   /** Рендер бокового бар-чарта */
   const renderSideBar = () => {
+    const barColors = getColorsForChart('wt-bar');
+    const barMainColor = barColors[0];
     if (barType === 'vbar') {
       return (
         <ResponsiveContainer width="100%" height={380}>
@@ -97,7 +104,7 @@ export default function WorkTypes() {
             <YAxis tick={{ fill: C.muted, fontSize: fsz.tick, fontFamily }} />
             <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
               itemStyle={{ color: C.text }} />
-            <Bar dataKey="count" fill={C.accent} radius={[6,6,0,0]} name="Заказов">
+            <Bar dataKey="count" fill={barMainColor} radius={[6,6,0,0]} name="Заказов">
               <LabelList dataKey="count" position="top" fill={C.muted} fontSize={fsz.label} />
             </Bar>
           </BarChart>
@@ -113,7 +120,7 @@ export default function WorkTypes() {
             tickFormatter={v => v.length > 25 ? v.slice(0,25)+'...' : v} />
           <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
             itemStyle={{ color: C.text }} />
-          <Bar dataKey="count" fill={C.accent} radius={[0,6,6,0]} name="Заказов">
+          <Bar dataKey="count" fill={barMainColor} radius={[0,6,6,0]} name="Заказов">
             <LabelList dataKey="count" position="right" fill={C.muted} fontSize={fsz.label} />
           </Bar>
         </BarChart>
@@ -145,7 +152,8 @@ export default function WorkTypes() {
             {/* Компактная легенда */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 8 }}>
               {types_data.map((d, i) => {
-                const clr = colors[i % colors.length];
+                const wtColors = getColorsForChart('wt-donut');
+                const clr = wtColors[i % wtColors.length];
                 return (
                   <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 8, lineHeight: 1.2 }}>
                     <div style={{ width: 12, height: 12, borderRadius: 2, background: clr, flexShrink: 0 }} />
@@ -180,9 +188,10 @@ export default function WorkTypes() {
                 <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
                   itemStyle={{ color: C.text }} />
                 <Legend formatter={v => <span style={{ color: C.muted, fontSize: fsz.legend - 2 }}>{v.length > 25 ? v.slice(0,25)+'...' : v}</span>} />
-                {monthly.map((m, i) => (
-                  <Line key={m.name} dataKey={m.name} stroke={colors[i % colors.length]} strokeWidth={2} dot={{ r: 3 }} />
-                ))}
+                {monthly.map((m, i) => {
+                  const monthColors = getColorsForChart('wt-monthly');
+                  return <Line key={m.name} dataKey={m.name} stroke={monthColors[i % monthColors.length]} strokeWidth={2} dot={{ r: 3 }} />;
+                })}
               </LineChart>
             </ResponsiveContainer>
           ) : (
@@ -197,9 +206,10 @@ export default function WorkTypes() {
                 <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
                   itemStyle={{ color: C.text }} />
                 <Legend formatter={v => <span style={{ color: C.muted, fontSize: fsz.legend - 2 }}>{v.length > 25 ? v.slice(0,25)+'...' : v}</span>} />
-                {monthly.map((m, i) => (
-                  <Bar key={m.name} dataKey={m.name} stackId="a" fill={colors[i % colors.length]} radius={[4,4,0,0]} />
-                ))}
+                {monthly.map((m, i) => {
+                  const monthColors = getColorsForChart('wt-monthly');
+                  return <Bar key={m.name} dataKey={m.name} stackId="a" fill={monthColors[i % monthColors.length]} radius={[4,4,0,0]} />;
+                })}
               </BarChart>
             </ResponsiveContainer>
           )}

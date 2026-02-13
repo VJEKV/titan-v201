@@ -165,9 +165,11 @@ async def get_equipment(
             })
 
     # === 4. Лидеры по внеплановым среди A и B ===
+    ABC_AB_VALUES = {'A', 'B', 'Высококритичное', 'Оч.высокая/Особокрит', 'Оч.высокая', 'Особокритичное',
+                     'Высокая', 'Средней критичности', 'Средняя', 'Средней крит.'}
     unplanned_leaders = []
     if 'Вид' in df_with_eo.columns and 'ABC' in df_with_eo.columns:
-        df_ab = df_with_eo[df_with_eo['ABC'].isin(['A', 'B'])]
+        df_ab = df_with_eo[df_with_eo['ABC'].isin(ABC_AB_VALUES)]
         if 'ВИД_КОД' in df_ab.columns:
             df_unpl = df_ab[df_ab['ВИД_КОД'].isin(ВНЕПЛАНОВЫЕ_ВИДЫ)]
         else:
@@ -186,6 +188,7 @@ async def get_equipment(
 
     # === 5. Heatmap: месяцы × ТОП-100 ЕО ===
     heatmap = []
+    heatmap_eo_stats = {}  # Статистика по ЕО: кол-во заказов + сумма
     eo_names_map = {}
     date_col = None
     for col in ['Начало', 'Конец', 'Факт_Начало']:
@@ -194,11 +197,27 @@ async def get_equipment(
             break
 
     if date_col and len(df_with_eo) > 0:
-        top100_eo = df_with_eo.groupby(eo_col)['Fact_N'].sum().nlargest(100).index.tolist()
+        # Считаем кол-во заказов и сумму затрат для каждого ЕО
+        eo_agg = df_with_eo.groupby(eo_col).agg(
+            n_orders=('ID', 'count'),
+            total_fact=('Fact_N', 'sum'),
+        ).reset_index()
+        # ТОП-100 по количеству заказов (убывание)
+        eo_agg_sorted = eo_agg.sort_values('n_orders', ascending=False).head(100)
+        top100_eo = eo_agg_sorted[eo_col].tolist()
         # Маппинг ЕО код → наименование
         if eo_name_col in df_with_eo.columns and eo_name_col != eo_col:
             names = df_with_eo.groupby(eo_col)[eo_name_col].first()
             eo_names_map = {str(k): str(v)[:40] for k, v in names.items()}
+        # Статистика для фронтенда
+        for _, ea in eo_agg_sorted.iterrows():
+            eo_code = str(ea[eo_col])
+            eo_name = eo_names_map.get(eo_code, '')
+            eo_label = f"{eo_code} {eo_name}".strip() if eo_name else eo_code
+            heatmap_eo_stats[eo_label] = {
+                "n_orders": int(ea['n_orders']),
+                "total_fact": _sf(ea['total_fact']),
+            }
         df_heat = df_with_eo[df_with_eo[eo_col].isin(top100_eo)].copy()
         df_heat['_month'] = df_heat[date_col].dt.month
         df_heat['_year'] = df_heat[date_col].dt.year
@@ -270,9 +289,23 @@ async def get_equipment(
     avg_orders_per_eo = 0
     if total_eo > 0:
         avg_orders_per_eo = round(len(df_with_eo) / total_eo, 1)
-    if 'ABC' in df_with_eo.columns:
-        abc_a = int(df_with_eo[df_with_eo['ABC'] == 'A'][eo_col].nunique())
-        abc_b = int(df_with_eo[df_with_eo['ABC'] == 'B'][eo_col].nunique())
+
+    # Маппинг ABC: поддержка как кодов (A/B/C), так и текстовых описаний
+    ABC_A_VALUES = {'A', 'Высококритичное', 'Оч.высокая/Особокрит', 'Оч.высокая', 'Особокритичное', 'Высокая'}
+    ABC_B_VALUES = {'B', 'Средней критичности', 'Средняя', 'Средней крит.'}
+
+    # Ищем по ABC (текст), потом по ABC_Код (код)
+    for abc_col_name in ['ABC', 'ABC_Код']:
+        if abc_col_name in df_with_eo.columns:
+            vals = df_with_eo[abc_col_name].astype(str)
+            abc_a_mask = vals.isin(ABC_A_VALUES)
+            abc_b_mask = vals.isin(ABC_B_VALUES)
+            a_count = int(df_with_eo.loc[abc_a_mask, eo_col].nunique())
+            b_count = int(df_with_eo.loc[abc_b_mask, eo_col].nunique())
+            if a_count > 0 or b_count > 0:
+                abc_a = a_count
+                abc_b = b_count
+                break
     no_class = int(len(df_no_eo))
 
     return {
@@ -289,6 +322,7 @@ async def get_equipment(
         "top50": top50,
         "unplanned_leaders": unplanned_leaders,
         "heatmap": heatmap,
+        "heatmap_eo_stats": heatmap_eo_stats,
         "frequency": frequency,
     }
 

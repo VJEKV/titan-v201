@@ -62,6 +62,82 @@ const METHOD_DETAILS = {
   }
 };
 
+/** Сворачиваемый блок методологии */
+function MethodologyBlock() {
+  const LS_KEY = 'risks_methodology_expanded';
+  const [expanded, setExpanded] = useState(() => {
+    try { return localStorage.getItem(LS_KEY) === 'true'; } catch { return false; }
+  });
+
+  const toggle = () => {
+    const next = !expanded;
+    setExpanded(next);
+    try { localStorage.setItem(LS_KEY, String(next)); } catch {}
+  };
+
+  return (
+    <div style={{
+      background: 'linear-gradient(145deg, #1e293b 0%, #273548 100%)',
+      borderRadius: 10, border: `1px solid ${C.border}`,
+      padding: 20, marginBottom: 16,
+    }}>
+      <h3 onClick={toggle} style={{
+        fontSize: 16, fontWeight: 600, color: C.accent, marginBottom: expanded ? 14 : 0,
+        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, userSelect: 'none',
+      }}>
+        <span style={{
+          display: 'inline-block', transition: 'transform 0.2s',
+          transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+          fontSize: 12,
+        }}>&#9654;</span>
+        Методология расчёта приоритетов
+      </h3>
+      <div style={{
+        maxHeight: expanded ? 1000 : 0,
+        overflow: 'hidden',
+        transition: 'max-height 0.35s ease',
+        opacity: expanded ? 1 : 0,
+      }}>
+        <div style={{ color: C.text, fontSize: 13, lineHeight: 1.7 }}>
+          <p style={{ marginBottom: 8 }}>
+            <strong style={{ color: C.accent }}>Приоритет</strong> = Сумма методов × Множитель + Качество данных × 0.8
+          </p>
+          <p style={{ marginBottom: 8, color: C.muted }}>
+            <strong>Сумма методов</strong> — взвешенная сумма баллов по 6 методам (каждый метод 0-10 баллов × вес).
+          </p>
+          <p style={{ marginBottom: 8, color: C.muted }}>
+            <strong>Множитель</strong> — коэффициент по количеству сработавших методов: 1→1.0, 2→1.3, 3→1.7, 4→2.2, 5→2.5, 6→3.0.
+          </p>
+          <p style={{ marginBottom: 8, color: C.muted }}>
+            <strong>Качество данных</strong> = 10 × (1 − Полнота/100) — штраф за некачественные данные.
+          </p>
+          <p style={{ marginBottom: 12, color: C.muted }}>
+            <strong>Линейный скоринг:</strong> значение = порогу → 5 баллов, 2×порог → 10 баллов, ниже порога → пропорционально.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 8 }}>
+            <div style={{ padding: '8px 12px', borderRadius: 6, background: `${C.danger}12`, borderLeft: `4px solid ${C.danger}` }}>
+              <strong style={{ color: C.danger }}>Красный (Приоритет &gt; 7)</strong>
+              <div style={{ color: C.muted, fontSize: 12 }}>Критичный риск. Высокий балл методов при хорошем качестве данных — явные нарушения, требующие немедленной проверки.</div>
+            </div>
+            <div style={{ padding: '8px 12px', borderRadius: 6, background: `${C.warning}12`, borderLeft: `4px solid ${C.warning}` }}>
+              <strong style={{ color: C.warning }}>Жёлтый (Приоритет 4-7)</strong>
+              <div style={{ color: C.muted, fontSize: 12 }}>Повышенный риск. Средний балл методов и/или плохое качество данных — подозрительные заказы для детальной проверки.</div>
+            </div>
+            <div style={{ padding: '8px 12px', borderRadius: 6, background: `${C.dim}12`, borderLeft: `4px solid ${C.dim}` }}>
+              <strong style={{ color: C.dim }}>Серый (Приоритет 1-4)</strong>
+              <div style={{ color: C.muted, fontSize: 12 }}>Умеренный риск. Низкий балл методов, но высокий штраф за качество данных — непроверяемые из-за нехватки информации.</div>
+            </div>
+            <div style={{ padding: '8px 12px', borderRadius: 6, background: `${C.success}12`, borderLeft: `4px solid ${C.success}` }}>
+              <strong style={{ color: C.success }}>Зелёный (Приоритет &lt; 1)</strong>
+              <div style={{ color: C.muted, fontSize: 12 }}>Норма. Методы не сработали, данные полные — чистые заказы без выявленных аномалий.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Risks({ setActiveMethod, setActiveTab }) {
   const { sessionId, filters, thresholds } = useFilters();
   const [data, setData] = useState(null);
@@ -164,44 +240,8 @@ export default function Risks({ setActiveMethod, setActiveTab }) {
         })}
       </div>
 
-      {/* Описание Risk Scoring v2 — прямо над таблицей */}
-      <Card title="Методология расчёта приоритетов">
-        <div style={{ color: C.text, fontSize: 13, lineHeight: 1.7 }}>
-          <p style={{ marginBottom: 8 }}>
-            <strong style={{ color: C.accent }}>Приоритет</strong> = Сумма методов × Множитель + Качество данных × 0.8
-          </p>
-          <p style={{ marginBottom: 8, color: C.muted }}>
-            <strong>Сумма методов</strong> — взвешенная сумма баллов по 6 методам (каждый метод 0-10 баллов × вес).
-          </p>
-          <p style={{ marginBottom: 8, color: C.muted }}>
-            <strong>Множитель</strong> — коэффициент по количеству сработавших методов: 1→1.0, 2→1.3, 3→1.7, 4→2.2, 5→2.5, 6→3.0.
-          </p>
-          <p style={{ marginBottom: 8, color: C.muted }}>
-            <strong>Качество данных</strong> = 10 × (1 − Полнота/100) — штраф за некачественные данные.
-          </p>
-          <p style={{ marginBottom: 12, color: C.muted }}>
-            <strong>Линейный скоринг:</strong> значение = порогу → 5 баллов, 2×порог → 10 баллов, ниже порога → пропорционально.
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 8 }}>
-            <div style={{ padding: '8px 12px', borderRadius: 6, background: `${C.danger}12`, borderLeft: `4px solid ${C.danger}` }}>
-              <strong style={{ color: C.danger }}>Красный (Приоритет &gt; 7)</strong>
-              <div style={{ color: C.muted, fontSize: 12 }}>Критичный риск. Высокий балл методов при хорошем качестве данных — явные нарушения, требующие немедленной проверки.</div>
-            </div>
-            <div style={{ padding: '8px 12px', borderRadius: 6, background: `${C.warning}12`, borderLeft: `4px solid ${C.warning}` }}>
-              <strong style={{ color: C.warning }}>Жёлтый (Приоритет 4-7)</strong>
-              <div style={{ color: C.muted, fontSize: 12 }}>Повышенный риск. Средний балл методов и/или плохое качество данных — подозрительные заказы для детальной проверки.</div>
-            </div>
-            <div style={{ padding: '8px 12px', borderRadius: 6, background: `${C.dim}12`, borderLeft: `4px solid ${C.dim}` }}>
-              <strong style={{ color: C.dim }}>Серый (Приоритет 1-4)</strong>
-              <div style={{ color: C.muted, fontSize: 12 }}>Умеренный риск. Низкий балл методов, но высокий штраф за качество данных — непроверяемые из-за нехватки информации.</div>
-            </div>
-            <div style={{ padding: '8px 12px', borderRadius: 6, background: `${C.success}12`, borderLeft: `4px solid ${C.success}` }}>
-              <strong style={{ color: C.success }}>Зелёный (Приоритет &lt; 1)</strong>
-              <div style={{ color: C.muted, fontSize: 12 }}>Норма. Методы не сработали, данные полные — чистые заказы без выявленных аномалий.</div>
-            </div>
-          </div>
-        </div>
-      </Card>
+      {/* Описание Risk Scoring v2 — сворачиваемый блок */}
+      <MethodologyBlock />
 
       {/* Таблица заказов с пагинацией */}
       {top_priority.length > 0 && (

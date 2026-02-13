@@ -7,7 +7,7 @@ import KpiCard from '../components/KpiCard';
 import KpiRow from '../components/KpiRow';
 import SectionTitle from '../components/SectionTitle';
 import Card from '../components/Card';
-import ChartSettings, { useChartSettings } from '../components/ChartSettings';
+import ChartSettings, { useChartSettings, getColorsForChart } from '../components/ChartSettings';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "0";
@@ -65,8 +65,9 @@ export default function Equipment() {
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;
 
-  const { kpi, abc_data, classes_data, per_eo_data, top50, unplanned_leaders, heatmap, frequency } = data;
-  const colors = cs.paletteColors;
+  const { kpi, abc_data, classes_data, per_eo_data, top50, unplanned_leaders, heatmap, heatmap_eo_stats, frequency } = data;
+  // Глобальные настройки (шрифт, размер); _rev для реактивности per-chart палитр
+  const _rev = cs._rev;
   const fs = cs.fontSizes;
   const fontFamily = cs.font;
 
@@ -88,12 +89,11 @@ export default function Equipment() {
 
   // Подготовка heatmap: ось X месяцы (хронологический порядок), ось Y ЕО
   const heatmapMonths = sortMonthLabels([...new Set(heatmap.map(h => h.label))]);
-  const heatmapEOs = [...new Set(heatmap.map(h => h.eo))];
+  const heatmapEOsRaw = [...new Set(heatmap.map(h => h.eo))];
   // Маппинг eo -> чистое наименование (без кода)
   const eoNameMap = {};
   heatmap.forEach(h => {
     if (!eoNameMap[h.eo]) {
-      // Убираем код ЕО (числа в начале), оставляем только наименование
       const parts = h.eo.split(' ');
       const name = parts.length > 1 ? parts.slice(1).join(' ') : h.eo;
       eoNameMap[h.eo] = name;
@@ -112,6 +112,14 @@ export default function Equipment() {
   const eoTotalMap = {};
   heatmap.forEach(h => {
     eoTotalMap[h.eo] = (eoTotalMap[h.eo] || 0) + (h.value || 0);
+  });
+
+  // Сортируем ЕО по количеству заказов (убывание), данные с бэкенда
+  const eoStats = heatmap_eo_stats || {};
+  const heatmapEOs = [...heatmapEOsRaw].sort((a, b) => {
+    const sa = eoStats[a]?.n_orders || 0;
+    const sb = eoStats[b]?.n_orders || 0;
+    return sb - sa;
   });
 
   const heatColor = (val) => {
@@ -144,46 +152,36 @@ export default function Equipment() {
     { key: '', label: '', sortable: false },
   ];
 
+  /** Цвета ABC — фиксированный массив, синхронизированный с плашками */
+  const ABC_FIXED_COLORS = abc_data.map(d => ABC_COLORS[d.abc] || C.dim);
+
   /** Рендер ABC-графика по типу */
   const renderAbcChart = () => {
-    const abcLabel = ({ name, percent, cx: pcx, cy: pcy, midAngle, outerRadius: oR }) => {
-      const radius = oR + 28;
-      const x = pcx + radius * Math.cos(-midAngle * RADIAN);
-      const y = pcy + radius * Math.sin(-midAngle * RADIAN);
-      return (
-        <text x={x} y={y} fill={C.text} fontSize={fs.label} fontFamily={fontFamily} textAnchor={x > pcx ? 'start' : 'end'} dominantBaseline="central">
-          {name} {(percent*100).toFixed(0)}%
-        </text>
-      );
-    };
-    if (abcChartType === 'pie') {
-      return (
-        <ResponsiveContainer width={420} height={420}>
-          <PieChart>
-            <Pie data={abc_data} dataKey="sum" nameKey="abc" cx="50%" cy="50%"
-              outerRadius={180} paddingAngle={2}
-              label={abcLabel}
-              labelLine={{ stroke: C.text, strokeWidth: 1 }}>
-              {abc_data.map((d, i) => (
-                <Cell key={i} fill={ABC_COLORS[d.abc] || colors[i % colors.length]} stroke={C.bg} strokeWidth={2} />
-              ))}
-            </Pie>
-            <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
-              itemStyle={{ color: C.text }} formatter={v => [`${fmtShort(v)} ₽`]} />
-          </PieChart>
-        </ResponsiveContainer>
-      );
-    }
-    // Donut (по умолчанию)
+    const abcColors = getColorsForChart('eq-abc');
+    // Для ABC используем фиксированные цвета по категории, а не палитру
+    const cellColors = ABC_FIXED_COLORS;
+    const inner = abcChartType === 'pie' ? 0 : 110;
     return (
       <ResponsiveContainer width={420} height={420}>
         <PieChart>
           <Pie data={abc_data} dataKey="sum" nameKey="abc" cx="50%" cy="50%"
-            innerRadius={110} outerRadius={180} paddingAngle={2}
-            label={abcLabel}
-            labelLine={{ stroke: C.text, strokeWidth: 1 }}>
+            innerRadius={inner} outerRadius={180} paddingAngle={2}
+            label={({ name, percent, cx: pcx, cy: pcy, midAngle, outerRadius: oR, startAngle, endAngle }) => {
+              const angle = Math.abs(endAngle - startAngle);
+              if (angle < 15) return null;
+              const radius = oR + 24;
+              const x = pcx + radius * Math.cos(-midAngle * RADIAN);
+              const y = pcy + radius * Math.sin(-midAngle * RADIAN);
+              const displayName = name && name.length > 20 ? name.slice(0, 20) + '...' : name;
+              return (
+                <text x={x} y={y} fill={C.text} fontSize={11} fontFamily={fontFamily} textAnchor={x > pcx ? 'start' : 'end'} dominantBaseline="central">
+                  {displayName} {(percent*100).toFixed(0)}%
+                </text>
+              );
+            }}
+            labelLine={{ stroke: C.muted, strokeWidth: 1 }}>
             {abc_data.map((d, i) => (
-              <Cell key={i} fill={ABC_COLORS[d.abc] || colors[i % colors.length]} stroke={C.bg} strokeWidth={2} />
+              <Cell key={i} fill={cellColors[i]} stroke={C.bg} strokeWidth={2} />
             ))}
           </Pie>
           <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
@@ -195,6 +193,8 @@ export default function Equipment() {
 
   /** Рендер графика классов по типу */
   const renderClassesChart = () => {
+    const clsColors = getColorsForChart('eq-classes');
+    const clsMainColor = clsColors[0];
     if (classesChartType === 'vbar') {
       return (
         <ResponsiveContainer width="100%" height={380}>
@@ -203,7 +203,7 @@ export default function Equipment() {
             <YAxis tick={{ fill: C.muted, fontSize: fs.tick, fontFamily }} tickFormatter={fmtShort} />
             <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
               itemStyle={{ color: C.text }} formatter={v => [fmt(v)]} />
-            <Bar dataKey="fact" fill={C.accent} radius={[6,6,0,0]} name="Факт">
+            <Bar dataKey="fact" fill={clsMainColor} radius={[6,6,0,0]} name="Факт">
               <LabelList dataKey="fact" position="top" fill={C.muted} fontSize={fs.label} formatter={fmtShort} />
             </Bar>
           </BarChart>
@@ -218,7 +218,7 @@ export default function Equipment() {
             <YAxis tick={{ fill: C.muted, fontSize: fs.tick, fontFamily }} tickFormatter={fmtShort} />
             <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
               itemStyle={{ color: C.text }} formatter={v => [fmt(v)]} />
-            <Line dataKey="fact" stroke={C.accent} strokeWidth={2} dot={{ r: 4, fill: C.accent }} name="Факт" />
+            <Line dataKey="fact" stroke={clsMainColor} strokeWidth={2} dot={{ r: 4, fill: clsMainColor }} name="Факт" />
           </LineChart>
         </ResponsiveContainer>
       );
@@ -231,7 +231,7 @@ export default function Equipment() {
           <YAxis type="category" dataKey="class_name" width={140} tick={{ fill: C.muted, fontSize: fs.tick, fontFamily }} />
           <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
             itemStyle={{ color: C.text }} formatter={v => [fmt(v)]} />
-          <Bar dataKey="fact" fill={C.accent} radius={[0,6,6,0]} name="Факт">
+          <Bar dataKey="fact" fill={clsMainColor} radius={[0,6,6,0]} name="Факт">
             <LabelList dataKey="fact" position="right" fill={C.muted} fontSize={fs.label} formatter={fmtShort} />
           </Bar>
         </BarChart>
@@ -241,6 +241,8 @@ export default function Equipment() {
 
   /** Рендер графика частоты по типу */
   const renderFreqChart = () => {
+    const freqColors = getColorsForChart('eq-freq');
+    const freqMainColor = freqColors[0];
     const freqData = frequency.map(f => ({ ...f, eo_label: f.equipment_name ? `${f.eo} ${f.equipment_name}` : f.eo }));
     if (freqChartType === 'vbar') {
       return (
@@ -251,7 +253,7 @@ export default function Equipment() {
             <YAxis tick={{ fill: C.muted, fontSize: fs.tick, fontFamily }} />
             <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
               itemStyle={{ color: C.text }} formatter={v => [`${v} дн.`, 'Средний интервал']} />
-            <Bar dataKey="avg_interval" fill={C.cyan} radius={[6,6,0,0]} name="avg_interval">
+            <Bar dataKey="avg_interval" fill={freqMainColor} radius={[6,6,0,0]} name="avg_interval">
               <LabelList dataKey="avg_interval" position="top" fill={C.muted} fontSize={fs.label - 1} formatter={v => `${v} дн.`} />
             </Bar>
           </BarChart>
@@ -267,7 +269,7 @@ export default function Equipment() {
             <YAxis tick={{ fill: C.muted, fontSize: fs.tick, fontFamily }} />
             <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
               itemStyle={{ color: C.text }} formatter={v => [`${v} дн.`, 'Средний интервал']} />
-            <Line dataKey="avg_interval" stroke={C.cyan} strokeWidth={2} dot={{ r: 4, fill: C.cyan }} name="avg_interval" />
+            <Line dataKey="avg_interval" stroke={freqMainColor} strokeWidth={2} dot={{ r: 4, fill: freqMainColor }} name="avg_interval" />
           </LineChart>
         </ResponsiveContainer>
       );
@@ -282,7 +284,7 @@ export default function Equipment() {
           <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
             itemStyle={{ color: C.text }}
             formatter={(v, name) => [name === 'avg_interval' ? `${v} дн.` : v, 'Средний интервал']} />
-          <Bar dataKey="avg_interval" fill={C.cyan} radius={[0,6,6,0]} name="avg_interval">
+          <Bar dataKey="avg_interval" fill={freqMainColor} radius={[0,6,6,0]} name="avg_interval">
             <LabelList dataKey="avg_interval" position="right" fill={C.muted} fontSize={fs.label - 1} formatter={v => `${v} дн.`} />
           </Bar>
         </BarChart>
@@ -312,22 +314,21 @@ export default function Equipment() {
             <div style={{ flex: '0 0 auto' }}>
               {renderAbcChart()}
             </div>
-            {/* Карточки ABC с цветным фоном */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 260 }}>
-              {abc_data.map(d => {
-                const clr = ABC_COLORS[d.abc] || C.dim;
+            {/* Компактные плашки ABC — цвет синхронизирован с бубликом */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 220 }}>
+              {abc_data.map((d, i) => {
+                const clr = ABC_FIXED_COLORS[i];
                 return (
                   <div key={d.abc} style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '10px 16px', borderRadius: 8,
-                    background: `${clr}20`,
-                    borderLeft: `4px solid ${clr}`,
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '6px 12px', borderRadius: 6, height: 36,
+                    background: `${clr}15`,
+                    borderLeft: `3px solid ${clr}`,
                   }}>
-                    <span style={{ fontSize: 22, fontWeight: 700, color: clr, minWidth: 36 }}>{d.abc}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: fs.legend, color: C.text, fontWeight: 600 }}>{fmtNum(d.count)} заказов</div>
-                      <div style={{ fontSize: fs.legend - 1, color: C.muted }}>{fmtShort(d.sum)} ₽ ({d.pct}%)</div>
-                    </div>
+                    <div style={{ width: 12, height: 12, borderRadius: 2, background: clr, flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: clr, minWidth: 24 }}>{d.abc}</span>
+                    <span style={{ fontSize: 12, color: C.text }}>{fmtNum(d.count)} зак.</span>
+                    <span style={{ fontSize: 12, color: C.muted, marginLeft: 'auto', whiteSpace: 'nowrap' }}>{fmtShort(d.sum)} ₽ ({d.pct}%)</span>
                   </div>
                 );
               })}
@@ -475,7 +476,7 @@ export default function Equipment() {
             <table>
               <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
                 <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
-                  <th style={{ color: C.muted, fontSize: 10, padding: '6px 8px', position: 'sticky', left: 0, background: C.bg, zIndex: 3, minWidth: 200 }}>Наименование</th>
+                  <th style={{ color: C.muted, fontSize: 10, padding: '6px 8px', position: 'sticky', left: 0, background: C.bg, zIndex: 3, minWidth: 340 }}>Наименование ЕО | Заказов | Сумма ₽</th>
                   {heatmapMonths.map(m => (
                     <th key={m} style={{ color: C.muted, fontSize: 10, padding: '6px 6px', whiteSpace: 'nowrap', textAlign: 'center' }}>{m}</th>
                   ))}
@@ -486,10 +487,19 @@ export default function Equipment() {
                 {heatmapEOs.map((eo, i) => {
                   const name = eoNameMap[eo] || eo;
                   const total = eoTotalMap[eo] || 0;
+                  const stats = eoStats[eo] || {};
+                  const nOrders = stats.n_orders || 0;
+                  const totalFact = stats.total_fact || 0;
                   return (
                     <tr key={i} style={{ borderBottom: `1px solid ${C.border}22` }}>
-                      <td style={{ color: C.text, fontSize: 10, padding: '4px 8px', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: C.surface, zIndex: 1, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis' }}
-                        title={eo}>{name.length > 32 ? name.slice(0,32)+'...' : name}</td>
+                      <td style={{ color: C.text, fontSize: 10, padding: '4px 8px', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: C.surface, zIndex: 1, maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        title={eo}>
+                        <span>{name.length > 24 ? name.slice(0,24)+'...' : name}</span>
+                        <span style={{ color: C.muted, marginLeft: 6 }}>|</span>
+                        <span style={{ color: C.accent, marginLeft: 4 }}>{nOrders} зак.</span>
+                        <span style={{ color: C.muted, marginLeft: 4 }}>|</span>
+                        <span style={{ color: C.warning, marginLeft: 4 }}>{fmtShort(totalFact)} ₽</span>
+                      </td>
                       {heatmapMonths.map(m => {
                         const val = heatmapMap[`${eo}|${m}`] || 0;
                         return (

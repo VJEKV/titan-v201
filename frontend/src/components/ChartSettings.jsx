@@ -33,10 +33,22 @@ function saveChartPalette(chartId, paletteKey) {
   }
 }
 
-/** Хук для использования настроек с реактивным обновлением */
+/** Получить цвета палитры для конкретного графика (не хук, можно вызывать в рендере) */
+export function getColorsForChart(chartId) {
+  const globalSettings = getChartSettings();
+  const localPalette = getChartPalette(chartId);
+  const palette = localPalette || globalSettings.palette || 'ice';
+  return CHART_PALETTES[palette]?.colors || CHART_PALETTES.ice.colors;
+}
+
+/** Хук для использования настроек с реактивным обновлением.
+ *  Отслеживает глобальные + per-chart изменения (через кастомное событие).
+ */
 export function useChartSettings(chartId) {
   const [settings, setSettings] = useState(getChartSettings);
   const [localPalette, setLocalPalette] = useState(() => getChartPalette(chartId));
+  // Ревизия — инкремент при любом изменении, чтобы пересчитать getColorsForChart
+  const [_rev, setRev] = useState(0);
 
   useEffect(() => {
     const handler = (e) => {
@@ -50,6 +62,7 @@ export function useChartSettings(chartId) {
     const customHandler = () => {
       setSettings(getChartSettings());
       if (chartId) setLocalPalette(getChartPalette(chartId));
+      setRev(r => r + 1);
     };
     window.addEventListener('chart-settings-changed', customHandler);
     return () => {
@@ -63,7 +76,7 @@ export function useChartSettings(chartId) {
   const paletteColors = CHART_PALETTES[activePalette]?.colors || CHART_PALETTES.ice.colors;
   const fontSizes = FONT_SIZE_PRESETS[settings.fontSize] || FONT_SIZE_PRESETS.M;
 
-  return { ...settings, palette: activePalette, paletteColors, fontSizes };
+  return { ...settings, _rev, palette: activePalette, paletteColors, fontSizes, getColorsForChart };
 }
 
 /** Иконка шестерёнки SVG */

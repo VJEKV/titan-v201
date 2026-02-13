@@ -8,7 +8,7 @@ import KpiRow from '../components/KpiRow';
 import SectionTitle from '../components/SectionTitle';
 import HeatmapTable from '../components/HeatmapTable';
 import Card from '../components/Card';
-import ChartSettings, { useChartSettings } from '../components/ChartSettings';
+import ChartSettings, { useChartSettings, getColorsForChart } from '../components/ChartSettings';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "0";

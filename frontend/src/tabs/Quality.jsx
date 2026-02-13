@@ -7,7 +7,7 @@ import KpiCard from '../components/KpiCard';
 import KpiRow from '../components/KpiRow';
 import SectionTitle from '../components/SectionTitle';
 import Card from '../components/Card';
-import ChartSettings, { useChartSettings } from '../components/ChartSettings';
+import ChartSettings, { useChartSettings, getColorsForChart } from '../components/ChartSettings';
 
 export default function Quality() {
   const { sessionId, filters, thresholds } = useFilters();
@@ -33,6 +33,8 @@ export default function Quality() {
   const fontFamily = cs.font;
 
   const renderChart = () => {
+    const qColors = getColorsForChart('q-bar');
+    const qMainColor = qColors[1] || C.danger;
     if (chartType === 'vbar') {
       return (
         <ResponsiveContainer width="100%" height={400}>
@@ -42,7 +44,7 @@ export default function Quality() {
             <YAxis tick={{ fill: C.muted, fontSize: fsz.tick, fontFamily }} />
             <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily }}
               formatter={(v, name, props) => [`${v} (${props.payload.pct}%)`, 'Пустых']} />
-            <Bar dataKey="empty" name="Пустых" fill={C.danger} radius={[6,6,0,0]}
+            <Bar dataKey="empty" name="Пустых" fill={qMainColor} radius={[6,6,0,0]}
               label={{ position: 'top', fill: C.muted, fontSize: fsz.label - 1,
                 formatter: (v) => {
                   const f = fieldsWithEmpty.find(x => x.empty === v);
@@ -63,7 +65,7 @@ export default function Quality() {
           <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily }}
             formatter={(v, name, props) => [`${v} (${props.payload.pct}%)`, 'Пустых']} />
           <Bar dataKey="empty" name="Пустых"
-            fill={C.danger}
+            fill={qMainColor}
             radius={[0,4,4,0]}
             label={{ position: 'right', fill: C.muted, fontSize: fsz.label,
               formatter: (v) => {

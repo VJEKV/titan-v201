@@ -8,7 +8,7 @@ import KpiRow from '../components/KpiRow';
 import SectionTitle from '../components/SectionTitle';
 import HeatmapTable from '../components/HeatmapTable';
 import Card from '../components/Card';
-import ChartSettings, { useChartSettings } from '../components/ChartSettings';
+import ChartSettings, { useChartSettings, getColorsForChart } from '../components/ChartSettings';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "0";
@@ -53,7 +53,7 @@ export default function Planners() {
 
   const { kpi, ingrp_data, users_data, user_scoring } = data;
   const sortedIngrp = [...ingrp_data].sort((a, b) => b.count - a.count);
-  const colors = cs.paletteColors;
+  const _rev = cs._rev;
   const fsz = cs.fontSizes;
   const fontFamily = cs.font;
 
@@ -82,25 +82,31 @@ export default function Planners() {
 
   /** Рендер бублика/пирога */
   const renderDonut = () => {
+    const colors = getColorsForChart('pl-donut');
     const inner = donutType === 'pie' ? 0 : 140;
+    const sliceData = ingrp_data.slice(0, 10);
+    const RADIAN = Math.PI / 180;
+    const showLabels = sliceData.length <= 5;
     return (
       <ResponsiveContainer width="100%" height={620}>
         <PieChart>
-          <Pie data={ingrp_data.slice(0, 10)} dataKey="fact" nameKey="name" cx="50%" cy="50%"
+          <Pie data={sliceData} dataKey="fact" nameKey="name" cx="50%" cy="50%"
             innerRadius={inner} outerRadius={230} paddingAngle={2}
-            label={({ name, percent, cx: pcx, cy: pcy, midAngle, outerRadius: oR }) => {
-              const RADIAN = Math.PI / 180;
+            label={showLabels ? ({ name, percent, cx: pcx, cy: pcy, midAngle, outerRadius: oR, startAngle, endAngle }) => {
+              const angle = Math.abs(endAngle - startAngle);
+              if (angle < 15) return null;
               const radius = oR + 30;
               const x = pcx + radius * Math.cos(-midAngle * RADIAN);
               const y = pcy + radius * Math.sin(-midAngle * RADIAN);
+              const displayName = name && name.length > 20 ? name.slice(0, 20) + '...' : (name || '');
               return (
                 <text x={x} y={y} fill={C.text} fontSize={fsz.tick} fontFamily={fontFamily} textAnchor={x > pcx ? 'start' : 'end'} dominantBaseline="central">
-                  {name || ''} {(percent*100).toFixed(0)}%
+                  {displayName} {(percent*100).toFixed(0)}%
                 </text>
               );
-            }}
-            labelLine={{ stroke: C.text, strokeWidth: 1 }}>
-            {ingrp_data.slice(0, 10).map((_, i) => (
+            } : false}
+            labelLine={showLabels ? { stroke: C.muted, strokeWidth: 1 } : false}>
+            {sliceData.map((_, i) => (
               <Cell key={i} fill={colors[i % colors.length]} stroke={C.bg} strokeWidth={2} />
             ))}
           </Pie>
@@ -113,6 +119,8 @@ export default function Planners() {
 
   /** Рендер бокового бар-чарта */
   const renderSideBar = () => {
+    const barColors = getColorsForChart('pl-bar');
+    const barMainColor = barColors[0];
     if (barType === 'vbar') {
       return (
         <ResponsiveContainer width="100%" height={380}>
@@ -122,7 +130,7 @@ export default function Planners() {
             <YAxis tick={{ fill: C.muted, fontSize: fsz.tick, fontFamily }} />
             <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
               itemStyle={{ color: C.text }} />
-            <Bar dataKey="count" fill={C.accent} radius={[6,6,0,0]} name="Заказов">
+            <Bar dataKey="count" fill={barMainColor} radius={[6,6,0,0]} name="Заказов">
               <LabelList dataKey="count" position="top" fill={C.muted} fontSize={fsz.label} />
             </Bar>
           </BarChart>
@@ -137,7 +145,7 @@ export default function Planners() {
             tickFormatter={v => v.length > 25 ? v.slice(0,25)+'...' : v} />
           <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
             itemStyle={{ color: C.text }} />
-          <Bar dataKey="count" fill={C.accent} radius={[0,6,6,0]} name="Заказов">
+          <Bar dataKey="count" fill={barMainColor} radius={[0,6,6,0]} name="Заказов">
             <LabelList dataKey="count" position="right" fill={C.muted} fontSize={fsz.label} />
           </Bar>
         </BarChart>
@@ -169,7 +177,8 @@ export default function Planners() {
             {/* Компактная легенда */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 8 }}>
               {ingrp_data.slice(0, 10).map((d, i) => {
-                const clr = colors[i % colors.length];
+                const plColors = getColorsForChart('pl-donut');
+                const clr = plColors[i % plColors.length];
                 return (
                   <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 8, lineHeight: 1.2 }}>
                     <div style={{ width: 12, height: 12, borderRadius: 2, background: clr, flexShrink: 0 }} />

@@ -8,7 +8,7 @@ import KpiRow from '../components/KpiRow';
 import SectionTitle from '../components/SectionTitle';
 import HeatmapTable from '../components/HeatmapTable';
 import Card from '../components/Card';
-import ChartSettings, { useChartSettings } from '../components/ChartSettings';
+import ChartSettings, { useChartSettings, getColorsForChart } from '../components/ChartSettings';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "0";
@@ -42,31 +42,36 @@ export default function Workplaces() {
   const overrun = rm_data.filter(d => d.dev > 0);
   const savings = rm_data.filter(d => d.dev < 0);
   const sortedByCount = [...rm_data].sort((a, b) => b.count - a.count).slice(0, 15);
-  const colors = cs.paletteColors;
+  const _rev = cs._rev;
   const fsz = cs.fontSizes;
   const fontFamily = cs.font;
 
   /** Рендер бублика/пирога */
   const renderDonut = () => {
+    const colors = getColorsForChart('wp-donut');
     const inner = donutType === 'pie' ? 0 : 140;
+    const sliceData = rm_data.slice(0, 10);
+    const RADIAN = Math.PI / 180;
     return (
       <ResponsiveContainer width="100%" height={620}>
         <PieChart>
-          <Pie data={rm_data.slice(0, 10)} dataKey="fact" nameKey="name" cx="50%" cy="50%"
+          <Pie data={sliceData} dataKey="fact" nameKey="name" cx="50%" cy="50%"
             innerRadius={inner} outerRadius={230} paddingAngle={2}
-            label={({ name, percent, cx: pcx, cy: pcy, midAngle, outerRadius: oR }) => {
-              const RADIAN = Math.PI / 180;
+            label={({ name, percent, cx: pcx, cy: pcy, midAngle, outerRadius: oR, startAngle, endAngle }) => {
+              const angle = Math.abs(endAngle - startAngle);
+              if (angle < 15) return null;
               const radius = oR + 30;
               const x = pcx + radius * Math.cos(-midAngle * RADIAN);
               const y = pcy + radius * Math.sin(-midAngle * RADIAN);
+              const displayName = name && name.length > 20 ? name.slice(0, 20) + '...' : (name || '');
               return (
                 <text x={x} y={y} fill={C.text} fontSize={fsz.tick} fontFamily={fontFamily} textAnchor={x > pcx ? 'start' : 'end'} dominantBaseline="central">
-                  {name || ''} {(percent*100).toFixed(0)}%
+                  {displayName} {(percent*100).toFixed(0)}%
                 </text>
               );
             }}
-            labelLine={{ stroke: C.text, strokeWidth: 1 }}>
-            {rm_data.slice(0, 10).map((_, i) => (
+            labelLine={{ stroke: C.muted, strokeWidth: 1 }}>
+            {sliceData.map((_, i) => (
               <Cell key={i} fill={colors[i % colors.length]} stroke={C.bg} strokeWidth={2} />
             ))}
           </Pie>
@@ -79,6 +84,8 @@ export default function Workplaces() {
 
   /** Рендер бокового бар-чарта */
   const renderSideBar = () => {
+    const barColors = getColorsForChart('wp-bar');
+    const barMainColor = barColors[0];
     if (barType === 'vbar') {
       return (
         <ResponsiveContainer width="100%" height={380}>
@@ -88,7 +95,7 @@ export default function Workplaces() {
             <YAxis tick={{ fill: C.muted, fontSize: fsz.tick, fontFamily }} />
             <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
               itemStyle={{ color: C.text }} />
-            <Bar dataKey="count" fill={C.accent} radius={[6,6,0,0]} name="Заказов">
+            <Bar dataKey="count" fill={barMainColor} radius={[6,6,0,0]} name="Заказов">
               <LabelList dataKey="count" position="top" fill={C.muted} fontSize={fsz.label} />
             </Bar>
           </BarChart>
@@ -103,7 +110,7 @@ export default function Workplaces() {
             tickFormatter={v => v.length > 30 ? v.slice(0,30)+'...' : v} />
           <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
             itemStyle={{ color: C.text }} />
-          <Bar dataKey="count" fill={C.accent} radius={[0,6,6,0]} name="Заказов">
+          <Bar dataKey="count" fill={barMainColor} radius={[0,6,6,0]} name="Заказов">
             <LabelList dataKey="count" position="right" fill={C.muted} fontSize={fsz.label} />
           </Bar>
         </BarChart>
@@ -130,7 +137,8 @@ export default function Workplaces() {
             {/* Компактная легенда */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 8 }}>
               {rm_data.slice(0, 10).map((d, i) => {
-                const clr = colors[i % colors.length];
+                const wpColors = getColorsForChart('wp-donut');
+                const clr = wpColors[i % wpColors.length];
                 return (
                   <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 8, lineHeight: 1.2 }}>
                     <div style={{ width: 12, height: 12, borderRadius: 2, background: clr, flexShrink: 0 }} />
