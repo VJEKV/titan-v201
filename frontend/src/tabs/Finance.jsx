@@ -8,7 +8,7 @@ import KpiRow from '../components/KpiRow';
 import SectionTitle from '../components/SectionTitle';
 import HeatmapTable from '../components/HeatmapTable';
 import Card from '../components/Card';
-import ChartSettings, { useChartSettings, getColorsForChart } from '../components/ChartSettings';
+import ChartSettings, { useChartSettings } from '../components/ChartSettings';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "0";
@@ -52,7 +52,8 @@ export default function Finance() {
   const { sessionId, filters, thresholds } = useFilters();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const cs = useChartSettings();
+  const csMain = useChartSettings('fin-monthly');
+  const csPareto = useChartSettings('fin-pareto');
 
   // Типы графиков
   const [monthlyChartType, setMonthlyChartType] = useState('bar');
@@ -72,8 +73,8 @@ export default function Finance() {
 
   const { kpi, monthly: rawMonthly, ceh_data, tm_data, pareto, pareto_orders, pareto_stats } = data;
   const monthly = dedupeByLabel(rawMonthly || []);
-  const fs = cs.fontSizes;
-  const fontFamily = cs.font;
+  const fs = csMain.fontSizes;
+  const fontFamily = csMain.font;
 
   /** Кнопка выгрузки таблицы в Excel */
   const ExcelBtn = ({ tableData, title }) => {
@@ -110,8 +111,8 @@ export default function Finance() {
               formatter={v => [fmt(v)]} labelStyle={{ color: C.accent }} itemStyle={{ color: C.text }} />
             <Legend wrapperStyle={{ color: C.muted, fontSize: fs.legend, paddingTop: 8 }}
               formatter={v => <span style={{ color: C.muted }}>{v}</span>} />
-            <Line dataKey="plan" stroke={C.accent} strokeWidth={2} dot={{ r: 4 }} name="План" />
-            <Line dataKey="fact" stroke={C.success} strokeWidth={2} dot={{ r: 4 }} name="Факт" />
+            <Line dataKey="plan" stroke={csMain.paletteColors[0]} strokeWidth={2} dot={{ r: 4 }} name="План" />
+            <Line dataKey="fact" stroke={csMain.paletteColors[1]} strokeWidth={2} dot={{ r: 4 }} name="Факт" />
           </LineChart>
         </ResponsiveContainer>
       );
@@ -126,8 +127,8 @@ export default function Finance() {
               formatter={v => [fmt(v)]} labelStyle={{ color: C.accent }} itemStyle={{ color: C.text }} />
             <Legend wrapperStyle={{ color: C.muted, fontSize: fs.legend, paddingTop: 8 }}
               formatter={v => <span style={{ color: C.muted }}>{v}</span>} />
-            <Area type="monotone" dataKey="plan" stroke={C.accent} fill={`${C.accent}20`} strokeWidth={2} name="План" />
-            <Area type="monotone" dataKey="fact" stroke={C.success} fill={`${C.success}20`} strokeWidth={2} name="Факт" />
+            <Area type="monotone" dataKey="plan" stroke={csMain.paletteColors[0]} fill={`${csMain.paletteColors[0]}20`} strokeWidth={2} name="План" />
+            <Area type="monotone" dataKey="fact" stroke={csMain.paletteColors[1]} fill={`${csMain.paletteColors[1]}20`} strokeWidth={2} name="Факт" />
           </AreaChart>
         </ResponsiveContainer>
       );
@@ -142,10 +143,10 @@ export default function Finance() {
             formatter={v => [fmt(v)]} labelStyle={{ color: C.accent }} itemStyle={{ color: C.text }} />
           <Legend wrapperStyle={{ color: C.muted, fontSize: fs.legend, paddingTop: 8 }}
             formatter={v => <span style={{ color: C.muted }}>{v}</span>} />
-          <Bar dataKey="plan" fill={C.accent} radius={[4,4,0,0]} name="План">
+          <Bar dataKey="plan" fill={csMain.paletteColors[0]} radius={[4,4,0,0]} name="План">
             <LabelList dataKey="plan" content={renderBarLabel} />
           </Bar>
-          <Bar dataKey="fact" fill={C.success} radius={[4,4,0,0]} name="Факт">
+          <Bar dataKey="fact" fill={csMain.paletteColors[1]} radius={[4,4,0,0]} name="Факт">
             <LabelList dataKey="fact" content={renderBarLabel} />
           </Bar>
         </BarChart>

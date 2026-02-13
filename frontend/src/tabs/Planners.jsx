@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LabelList, LineChart, Line } from 'recharts';
-import { C, CHART_COLORS } from '../theme/arctic';
+import { C } from '../theme/arctic';
 import { useFilters } from '../hooks/useFilters';
 import { apiGet } from '../api/client';
 import KpiCard from '../components/KpiCard';
@@ -8,7 +8,7 @@ import KpiRow from '../components/KpiRow';
 import SectionTitle from '../components/SectionTitle';
 import HeatmapTable from '../components/HeatmapTable';
 import Card from '../components/Card';
-import ChartSettings, { useChartSettings, getColorsForChart } from '../components/ChartSettings';
+import ChartSettings, { useChartSettings } from '../components/ChartSettings';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "0";
@@ -16,6 +16,11 @@ function fmtShort(v) {
   if (a >= 1e6) return `${s}${(a/1e6).toFixed(1)}М`;
   if (a >= 1e3) return `${s}${(a/1e3).toFixed(1)}К`;
   return `${s}${a.toFixed(0)}`;
+}
+
+function fmtNum(v) {
+  if (!v && v !== 0) return '0';
+  return Number(v).toLocaleString('ru-RU', { maximumFractionDigits: 0 });
 }
 
 /** Маппинг полей SAP */
@@ -35,7 +40,8 @@ export default function Planners() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [hoveredField, setHoveredField] = useState(null);
-  const cs = useChartSettings();
+  const csDonut = useChartSettings('pl-donut');
+  const csBar = useChartSettings('pl-bar');
 
   // Типы графиков
   const [donutType, setDonutType] = useState('donut');
@@ -53,9 +59,8 @@ export default function Planners() {
 
   const { kpi, ingrp_data, users_data, user_scoring } = data;
   const sortedIngrp = [...ingrp_data].sort((a, b) => b.count - a.count);
-  const _rev = cs._rev;
-  const fsz = cs.fontSizes;
-  const fontFamily = cs.font;
+  const fsz = csDonut.fontSizes;
+  const fontFamily = csDonut.font;
 
   /** Экспорт скоринга в Excel */
   const exportScoringExcel = () => {
@@ -82,7 +87,7 @@ export default function Planners() {
 
   /** Рендер бублика/пирога */
   const renderDonut = () => {
-    const colors = getColorsForChart('pl-donut');
+    const colors = csDonut.paletteColors;
     const inner = donutType === 'pie' ? 0 : 140;
     const sliceData = ingrp_data.slice(0, 10);
     const RADIAN = Math.PI / 180;
@@ -119,8 +124,7 @@ export default function Planners() {
 
   /** Рендер бокового бар-чарта */
   const renderSideBar = () => {
-    const barColors = getColorsForChart('pl-bar');
-    const barMainColor = barColors[0];
+    const barMainColor = csBar.paletteColors[0];
     if (barType === 'vbar') {
       return (
         <ResponsiveContainer width="100%" height={380}>
@@ -175,15 +179,18 @@ export default function Planners() {
           <div style={{ flex: '1 1 500px' }}>
             {renderDonut()}
             {/* Компактная легенда */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 8 }}>
               {ingrp_data.slice(0, 10).map((d, i) => {
-                const plColors = getColorsForChart('pl-donut');
-                const clr = plColors[i % plColors.length];
+                const clr = csDonut.paletteColors[i % csDonut.paletteColors.length];
                 return (
-                  <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 8, lineHeight: 1.2 }}>
-                    <div style={{ width: 12, height: 12, borderRadius: 2, background: clr, flexShrink: 0 }} />
-                    <span style={{ fontSize: 11, color: C.text }}>{d.name}</span>
-                    <span style={{ fontSize: 11, color: C.muted, marginLeft: 'auto', whiteSpace: 'nowrap' }}>{fmtShort(d.fact)} ₽</span>
+                  <div key={d.name} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, height: 30, padding: '4px 8px',
+                    borderRadius: 4, background: `${clr}10`, borderLeft: `3px solid ${clr}`,
+                  }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 2, background: clr, flexShrink: 0 }} />
+                    <span style={{ fontSize: 11, color: C.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</span>
+                    <span style={{ fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>{fmtNum(d.count)} зак.</span>
+                    <span style={{ fontSize: 11, color: clr, whiteSpace: 'nowrap', fontWeight: 600 }}>{fmtShort(d.fact)} ₽</span>
                   </div>
                 );
               })}

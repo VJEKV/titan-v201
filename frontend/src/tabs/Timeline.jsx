@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LabelList } from 'recharts';
-import { C, CHART_COLORS } from '../theme/arctic';
+import { C } from '../theme/arctic';
 import { useFilters } from '../hooks/useFilters';
 import { apiGet } from '../api/client';
 import KpiCard from '../components/KpiCard';
 import KpiRow from '../components/KpiRow';
 import SectionTitle from '../components/SectionTitle';
 import Card from '../components/Card';
-import ChartSettings, { useChartSettings, getColorsForChart } from '../components/ChartSettings';
+import ChartSettings, { useChartSettings } from '../components/ChartSettings';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "0";
@@ -59,7 +59,9 @@ export default function Timeline() {
   const { sessionId, filters, thresholds } = useFilters();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const cs = useChartSettings();
+  const csCost = useChartSettings('tl-cost');
+  const csCount = useChartSettings('tl-count');
+  const csDur = useChartSettings('tl-dur');
 
   // Типы графиков
   const [costType, setCostType] = useState('bar');
@@ -80,8 +82,8 @@ export default function Timeline() {
   const monthly_count = dedupeByLabel(rawMonthlyCount || []);
   const costData = mergeSeriesData(cost);
   const durationData = mergeSeriesData(duration);
-  const fsz = cs.fontSizes;
-  const fontFamily = cs.font;
+  const fsz = csCost.fontSizes;
+  const fontFamily = csCost.font;
 
   /** Рендер графика стоимости */
   const renderCostChart = () => {
@@ -94,8 +96,8 @@ export default function Timeline() {
             <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily }}
               formatter={v => [`${fmtShort(v)} ₽`]} />
             <Legend formatter={v => <span style={{ color: C.muted, fontSize: fsz.legend }}>{v === 'plan' ? 'План' : 'Факт'}</span>} />
-            {cost.find(s => s.name === 'plan') && <Line dataKey="plan" stroke={C.accent} strokeWidth={2} dot={{ r: 4 }} name="plan" />}
-            {cost.find(s => s.name === 'fact') && <Line dataKey="fact" stroke={C.warning} strokeWidth={2} dot={{ r: 4 }} name="fact" />}
+            {cost.find(s => s.name === 'plan') && <Line dataKey="plan" stroke={csCost.paletteColors[0]} strokeWidth={2} dot={{ r: 4 }} name="plan" />}
+            {cost.find(s => s.name === 'fact') && <Line dataKey="fact" stroke={csCost.paletteColors[1]} strokeWidth={2} dot={{ r: 4 }} name="fact" />}
           </LineChart>
         </ResponsiveContainer>
       );
@@ -109,8 +111,8 @@ export default function Timeline() {
             <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily }}
               formatter={v => [`${fmtShort(v)} ₽`]} />
             <Legend formatter={v => <span style={{ color: C.muted, fontSize: fsz.legend }}>{v === 'plan' ? 'План' : 'Факт'}</span>} />
-            {cost.find(s => s.name === 'plan') && <Area type="monotone" dataKey="plan" stroke={C.accent} fill={`${C.accent}20`} strokeWidth={2} name="plan" />}
-            {cost.find(s => s.name === 'fact') && <Area type="monotone" dataKey="fact" stroke={C.warning} fill={`${C.warning}20`} strokeWidth={2} name="fact" />}
+            {cost.find(s => s.name === 'plan') && <Area type="monotone" dataKey="plan" stroke={csCost.paletteColors[0]} fill={`${csCost.paletteColors[0]}20`} strokeWidth={2} name="plan" />}
+            {cost.find(s => s.name === 'fact') && <Area type="monotone" dataKey="fact" stroke={csCost.paletteColors[1]} fill={`${csCost.paletteColors[1]}20`} strokeWidth={2} name="fact" />}
           </AreaChart>
         </ResponsiveContainer>
       );
@@ -125,12 +127,12 @@ export default function Timeline() {
             formatter={v => [`${fmtShort(v)} ₽`]} />
           <Legend formatter={v => <span style={{ color: C.muted, fontSize: fsz.legend }}>{v === 'plan' ? 'План' : 'Факт'}</span>} />
           {cost.find(s => s.name === 'plan') && (
-            <Bar dataKey="plan" fill={C.accent} radius={[4,4,0,0]} name="plan">
+            <Bar dataKey="plan" fill={csCost.paletteColors[0]} radius={[4,4,0,0]} name="plan">
               <LabelList dataKey="plan" content={renderBarLabel} />
             </Bar>
           )}
           {cost.find(s => s.name === 'fact') && (
-            <Bar dataKey="fact" fill={C.warning} radius={[4,4,0,0]} name="fact">
+            <Bar dataKey="fact" fill={csCost.paletteColors[1]} radius={[4,4,0,0]} name="fact">
               <LabelList dataKey="fact" content={renderBarLabel} />
             </Bar>
           )}
@@ -148,7 +150,7 @@ export default function Timeline() {
             <XAxis dataKey="label" tick={{ fill: C.muted, fontSize: fsz.tick, fontFamily }} angle={-45} textAnchor="end" height={60} interval={0} allowDuplicatedCategory={false} />
             <YAxis tick={{ fill: C.muted, fontSize: fsz.tick, fontFamily }} />
             <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily }} />
-            <Line dataKey="count" stroke={C.accent} strokeWidth={2} dot={{ r: 4 }} name="Заказов" />
+            <Line dataKey="count" stroke={csCount.paletteColors[0]} strokeWidth={2} dot={{ r: 4 }} name="Заказов" />
           </LineChart>
         </ResponsiveContainer>
       );
@@ -160,7 +162,7 @@ export default function Timeline() {
             <XAxis dataKey="label" tick={{ fill: C.muted, fontSize: fsz.tick, fontFamily }} angle={-45} textAnchor="end" height={60} interval={0} allowDuplicatedCategory={false} />
             <YAxis tick={{ fill: C.muted, fontSize: fsz.tick, fontFamily }} />
             <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily }} />
-            <Area type="monotone" dataKey="count" stroke={C.accent} fill={`${C.accent}20`} strokeWidth={2} name="Заказов" />
+            <Area type="monotone" dataKey="count" stroke={csCount.paletteColors[0]} fill={`${csCount.paletteColors[0]}20`} strokeWidth={2} name="Заказов" />
           </AreaChart>
         </ResponsiveContainer>
       );
@@ -171,7 +173,7 @@ export default function Timeline() {
           <XAxis dataKey="label" tick={{ fill: C.muted, fontSize: fsz.tick, fontFamily }} angle={-45} textAnchor="end" height={60} interval={0} allowDuplicatedCategory={false} />
           <YAxis tick={{ fill: C.muted, fontSize: fsz.tick, fontFamily }} />
           <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily }} />
-          <Bar dataKey="count" fill={C.accent} radius={[4,4,0,0]} name="Заказов">
+          <Bar dataKey="count" fill={csCount.paletteColors[0]} radius={[4,4,0,0]} name="Заказов">
             <LabelList dataKey="count" content={renderBarLabel} />
           </Bar>
         </BarChart>
@@ -189,8 +191,8 @@ export default function Timeline() {
             <YAxis tick={{ fill: C.muted, fontSize: fsz.tick, fontFamily }} />
             <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily }} />
             <Legend formatter={v => <span style={{ color: C.muted, fontSize: fsz.legend }}>{v === 'plan' ? 'План' : 'Факт'}</span>} />
-            {duration.find(s => s.name === 'plan') && <Bar dataKey="plan" fill={C.accent} radius={[4,4,0,0]} name="plan" />}
-            {duration.find(s => s.name === 'fact') && <Bar dataKey="fact" fill={C.warning} radius={[4,4,0,0]} name="fact" />}
+            {duration.find(s => s.name === 'plan') && <Bar dataKey="plan" fill={csDur.paletteColors[0]} radius={[4,4,0,0]} name="plan" />}
+            {duration.find(s => s.name === 'fact') && <Bar dataKey="fact" fill={csDur.paletteColors[1]} radius={[4,4,0,0]} name="fact" />}
           </BarChart>
         </ResponsiveContainer>
       );
@@ -203,8 +205,8 @@ export default function Timeline() {
             <YAxis tick={{ fill: C.muted, fontSize: fsz.tick, fontFamily }} />
             <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily }} />
             <Legend formatter={v => <span style={{ color: C.muted, fontSize: fsz.legend }}>{v === 'plan' ? 'План' : 'Факт'}</span>} />
-            {duration.find(s => s.name === 'plan') && <Area type="monotone" dataKey="plan" stroke={C.accent} fill={`${C.accent}20`} strokeWidth={2} name="plan" />}
-            {duration.find(s => s.name === 'fact') && <Area type="monotone" dataKey="fact" stroke={C.warning} fill={`${C.warning}20`} strokeWidth={2} name="fact" />}
+            {duration.find(s => s.name === 'plan') && <Area type="monotone" dataKey="plan" stroke={csDur.paletteColors[0]} fill={`${csDur.paletteColors[0]}20`} strokeWidth={2} name="plan" />}
+            {duration.find(s => s.name === 'fact') && <Area type="monotone" dataKey="fact" stroke={csDur.paletteColors[1]} fill={`${csDur.paletteColors[1]}20`} strokeWidth={2} name="fact" />}
           </AreaChart>
         </ResponsiveContainer>
       );
@@ -217,8 +219,8 @@ export default function Timeline() {
           <YAxis tick={{ fill: C.muted, fontSize: fsz.tick, fontFamily }} />
           <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily }} />
           <Legend formatter={v => <span style={{ color: C.muted, fontSize: fsz.legend }}>{v === 'plan' ? 'План' : 'Факт'}</span>} />
-          {duration.find(s => s.name === 'plan') && <Line dataKey="plan" stroke={C.accent} strokeWidth={2} dot={{ r: 4 }} name="plan" />}
-          {duration.find(s => s.name === 'fact') && <Line dataKey="fact" stroke={C.warning} strokeWidth={2} dot={{ r: 4 }} name="fact" />}
+          {duration.find(s => s.name === 'plan') && <Line dataKey="plan" stroke={csDur.paletteColors[0]} strokeWidth={2} dot={{ r: 4 }} name="plan" />}
+          {duration.find(s => s.name === 'fact') && <Line dataKey="fact" stroke={csDur.paletteColors[1]} strokeWidth={2} dot={{ r: 4 }} name="fact" />}
         </LineChart>
       </ResponsiveContainer>
     );

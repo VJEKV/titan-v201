@@ -7,13 +7,13 @@ import KpiCard from '../components/KpiCard';
 import KpiRow from '../components/KpiRow';
 import SectionTitle from '../components/SectionTitle';
 import Card from '../components/Card';
-import ChartSettings, { useChartSettings, getColorsForChart } from '../components/ChartSettings';
+import ChartSettings, { useChartSettings } from '../components/ChartSettings';
 
 export default function Quality() {
   const { sessionId, filters, thresholds } = useFilters();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const cs = useChartSettings();
+  const csBar = useChartSettings('q-bar');
 
   const [chartType, setChartType] = useState('hbar');
 
@@ -29,12 +29,11 @@ export default function Quality() {
 
   const { kpi, fields } = data;
   const fieldsWithEmpty = fields.filter(f => f.empty > 0);
-  const fsz = cs.fontSizes;
-  const fontFamily = cs.font;
+  const fsz = csBar.fontSizes;
+  const fontFamily = csBar.font;
 
   const renderChart = () => {
-    const qColors = getColorsForChart('q-bar');
-    const qMainColor = qColors[1] || C.danger;
+    const qMainColor = csBar.paletteColors[1] || C.danger;
     if (chartType === 'vbar') {
       return (
         <ResponsiveContainer width="100%" height={400}>

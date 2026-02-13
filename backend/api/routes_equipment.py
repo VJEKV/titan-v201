@@ -293,18 +293,23 @@ async def get_equipment(
     # Маппинг ABC: поддержка как кодов (A/B/C), так и текстовых описаний
     ABC_A_VALUES = {'A', 'Высококритичное', 'Оч.высокая/Особокрит', 'Оч.высокая', 'Особокритичное', 'Высокая'}
     ABC_B_VALUES = {'B', 'Средней критичности', 'Средняя', 'Средней крит.'}
+    ABC_C_VALUES = {'C', 'Не критично', 'Низкой критичности'}
 
+    abc_c = 0
     # Ищем по ABC (текст), потом по ABC_Код (код)
     for abc_col_name in ['ABC', 'ABC_Код']:
         if abc_col_name in df_with_eo.columns:
             vals = df_with_eo[abc_col_name].astype(str)
             abc_a_mask = vals.isin(ABC_A_VALUES)
             abc_b_mask = vals.isin(ABC_B_VALUES)
+            abc_c_mask = vals.isin(ABC_C_VALUES)
             a_count = int(df_with_eo.loc[abc_a_mask, eo_col].nunique())
             b_count = int(df_with_eo.loc[abc_b_mask, eo_col].nunique())
-            if a_count > 0 or b_count > 0:
+            c_count = int(df_with_eo.loc[abc_c_mask, eo_col].nunique())
+            if a_count > 0 or b_count > 0 or c_count > 0:
                 abc_a = a_count
                 abc_b = b_count
+                abc_c = c_count
                 break
     no_class = int(len(df_no_eo))
 
@@ -313,6 +318,7 @@ async def get_equipment(
             "total_eo": total_eo,
             "abc_a": abc_a,
             "abc_b": abc_b,
+            "abc_c": abc_c,
             "no_eo_orders": no_class,
             "avg_orders_per_eo": avg_orders_per_eo,
         },

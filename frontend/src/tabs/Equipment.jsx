@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList, LineChart, Line, AreaChart, Area } from 'recharts';
-import { C, ABC_COLORS, CHART_COLORS } from '../theme/arctic';
+import { C, ABC_COLORS } from '../theme/arctic';
 import { useFilters } from '../hooks/useFilters';
 import { apiGet, apiDownload } from '../api/client';
 import KpiCard from '../components/KpiCard';
 import KpiRow from '../components/KpiRow';
 import SectionTitle from '../components/SectionTitle';
 import Card from '../components/Card';
-import ChartSettings, { useChartSettings, getColorsForChart } from '../components/ChartSettings';
+import ChartSettings, { useChartSettings } from '../components/ChartSettings';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "0";
@@ -48,7 +48,9 @@ export default function Equipment() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [topSort, setTopSort] = useState({ col: 'fact', dir: 'desc' });
-  const cs = useChartSettings();
+  const csAbc = useChartSettings('eq-abc');
+  const csClasses = useChartSettings('eq-classes');
+  const csFreq = useChartSettings('eq-freq');
 
   // Типы графиков
   const [abcChartType, setAbcChartType] = useState('donut');
@@ -66,10 +68,8 @@ export default function Equipment() {
   if (!data) return null;
 
   const { kpi, abc_data, classes_data, per_eo_data, top50, unplanned_leaders, heatmap, heatmap_eo_stats, frequency } = data;
-  // Глобальные настройки (шрифт, размер); _rev для реактивности per-chart палитр
-  const _rev = cs._rev;
-  const fs = cs.fontSizes;
-  const fontFamily = cs.font;
+  const fs = csAbc.fontSizes;
+  const fontFamily = csAbc.font;
 
   // Сортировка TOP-50
   const handleTopSort = (col) => {
@@ -157,9 +157,10 @@ export default function Equipment() {
 
   /** Рендер ABC-графика по типу */
   const renderAbcChart = () => {
-    const abcColors = getColorsForChart('eq-abc');
-    // Для ABC используем фиксированные цвета по категории, а не палитру
-    const cellColors = ABC_FIXED_COLORS;
+    const useCustom = csAbc.palette !== 'ice';
+    const cellColors = useCustom
+      ? abc_data.map((_, i) => csAbc.paletteColors[i % csAbc.paletteColors.length])
+      : ABC_FIXED_COLORS;
     const inner = abcChartType === 'pie' ? 0 : 110;
     return (
       <ResponsiveContainer width={420} height={420}>
@@ -193,8 +194,7 @@ export default function Equipment() {
 
   /** Рендер графика классов по типу */
   const renderClassesChart = () => {
-    const clsColors = getColorsForChart('eq-classes');
-    const clsMainColor = clsColors[0];
+    const clsMainColor = csClasses.paletteColors[0];
     if (classesChartType === 'vbar') {
       return (
         <ResponsiveContainer width="100%" height={380}>
@@ -241,8 +241,7 @@ export default function Equipment() {
 
   /** Рендер графика частоты по типу */
   const renderFreqChart = () => {
-    const freqColors = getColorsForChart('eq-freq');
-    const freqMainColor = freqColors[0];
+    const freqMainColor = csFreq.paletteColors[0];
     const freqData = frequency.map(f => ({ ...f, eo_label: f.equipment_name ? `${f.eo} ${f.equipment_name}` : f.eo }));
     if (freqChartType === 'vbar') {
       return (
@@ -303,6 +302,7 @@ export default function Equipment() {
         <KpiCard title="ВСЕГО ЕО" value={fmtNum(kpi.total_eo)} />
         <KpiCard title="КЛАСС A" value={fmtNum(kpi.abc_a)} color={C.danger} />
         <KpiCard title="КЛАСС B" value={fmtNum(kpi.abc_b)} color={C.warning} />
+        <KpiCard title="КЛАСС C" value={fmtNum(kpi.abc_c)} color={C.success} />
         <KpiCard title="БЕЗ ЕО (ЗАКАЗОВ)" value={fmtNum(kpi.no_eo_orders)} color={C.dim} />
         <KpiCard title="СРЕДН. ЗАКАЗОВ/ЕО" value={kpi.avg_orders_per_eo} />
       </KpiRow>
@@ -315,20 +315,20 @@ export default function Equipment() {
               {renderAbcChart()}
             </div>
             {/* Компактные плашки ABC — цвет синхронизирован с бубликом */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 220 }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 220 }}>
               {abc_data.map((d, i) => {
                 const clr = ABC_FIXED_COLORS[i];
                 return (
                   <div key={d.abc} style={{
                     display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '6px 12px', borderRadius: 6, height: 36,
-                    background: `${clr}15`,
+                    padding: '4px 8px', borderRadius: 4, height: 30,
+                    background: `${clr}10`,
                     borderLeft: `3px solid ${clr}`,
                   }}>
-                    <div style={{ width: 12, height: 12, borderRadius: 2, background: clr, flexShrink: 0 }} />
-                    <span style={{ fontSize: 13, fontWeight: 600, color: clr, minWidth: 24 }}>{d.abc}</span>
-                    <span style={{ fontSize: 12, color: C.text }}>{fmtNum(d.count)} зак.</span>
-                    <span style={{ fontSize: 12, color: C.muted, marginLeft: 'auto', whiteSpace: 'nowrap' }}>{fmtShort(d.sum)} ₽ ({d.pct}%)</span>
+                    <div style={{ width: 10, height: 10, borderRadius: 2, background: clr, flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: clr, minWidth: 20 }}>{d.abc}</span>
+                    <span style={{ fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>{fmtNum(d.count)} зак.</span>
+                    <span style={{ fontSize: 11, color: clr, whiteSpace: 'nowrap', fontWeight: 600, marginLeft: 'auto' }}>{fmtShort(d.sum)} ₽ ({d.pct}%)</span>
                   </div>
                 );
               })}
