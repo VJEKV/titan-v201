@@ -3,9 +3,10 @@
 routes_chat.py — Чат-бот аналитик ТИТАН
 
 POST /api/chat — вопрос к LLM по загруженным данным ТОРО.
-Заглушка при отсутствии Ollama, иначе отправляет в Qwen3 4B.
+Поддержка: DeepSeek API (приоритет) → Ollama Qwen3 4B (фоллбек).
 """
 
+import os
 import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -13,7 +14,29 @@ from pydantic import BaseModel
 from state.session import get_session
 from config.constants import METHODS_RISK
 
+
+# ── Загрузка .env ──
+
+def _load_env():
+    for p in [os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"),
+              os.path.join(os.path.dirname(__file__), "..", ".env")]:
+        if os.path.exists(p):
+            with open(p) as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        os.environ.setdefault(k.strip(), v.strip())
+
+_load_env()
+
 router = APIRouter(prefix="/api", tags=["chat"])
+
+# ── Конфигурация LLM ──
+
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
+DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
+DEEPSEEK_MODEL = "deepseek-chat"
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
 OLLAMA_MODEL = "qwen3:4b"
@@ -141,6 +164,17 @@ async def _check_ollama() -> bool:
         return False
 
 
+async def _query_deepseek(messages: list[dict]) -> str:
+    """Отправить запрос к DeepSeek API."""
+    headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
+    payload = {"model": DEEPSEEK_MODEL, "messages": messages, "max_tokens": 2000, "temperature": 0.3}
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post(DEEPSEEK_API_URL, json=payload, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
+
+
 async def _query_ollama(messages: list[dict]) -> str:
     """Отправить запрос к Ollama и получить ответ."""
     payload = {
@@ -162,28 +196,44 @@ async def chat(req: ChatRequest):
     """Чат с аналитиком ТИТАН по данным ТОРО."""
     session = get_session(req.session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="Сессия не найдена. Загрузите файл.")
+        raise HTTPException(status_code=404, detail="Сессия не найдена.")
 
-    df = session['df']
+    df = session["df"]
     context = _build_context(df)
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(context=context)
 
-    # Проверяем Ollama
-    available = await _check_ollama()
-    if not available:
-        return ChatResponse(reply=FALLBACK_MESSAGE, llm_available=False)
-
-    # Формируем сообщения для LLM
     messages = [{"role": "system", "content": system_prompt}]
-    for msg in req.history[-20:]:  # Ограничиваем историю 20 сообщениями
+    for msg in req.history[-20:]:
         messages.append({"role": msg.role, "content": msg.content})
     messages.append({"role": "user", "content": req.message})
 
-    try:
-        reply = await _query_ollama(messages)
-        return ChatResponse(reply=reply, llm_available=True)
-    except Exception as e:
-        return ChatResponse(
-            reply=f"Ошибка при обращении к LLM: {str(e)}",
-            llm_available=True,
-        )
+    # Приоритет: DeepSeek API → Ollama → заглушка
+    if DEEPSEEK_API_KEY:
+        try:
+            reply = await _query_deepseek(messages)
+            return ChatResponse(reply=reply, llm_available=True)
+        except Exception as e:
+            print(f"[Chat] DeepSeek error: {e}")
+
+    if await _check_ollama():
+        try:
+            reply = await _query_ollama(messages)
+            return ChatResponse(reply=reply, llm_available=True)
+        except Exception as e:
+            print(f"[Chat] Ollama error: {e}")
+
+    return ChatResponse(
+        reply="LLM недоступна. Проверьте DeepSeek API ключ или Ollama.",
+        llm_available=False,
+    )
+
+
+@router.get("/chat/status")
+async def chat_status():
+    """Статус доступности LLM-провайдеров."""
+    has_ds = bool(DEEPSEEK_API_KEY)
+    has_ol = await _check_ollama()
+    return {
+        "available": has_ds or has_ol,
+        "provider": "deepseek" if has_ds else ("ollama" if has_ol else "none"),
+    }
