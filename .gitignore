@@ -1,0 +1,9 @@
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.venv/
+source_v110/
+*.xlsx
+.claude/
+*.log
