@@ -21,6 +21,7 @@ import Risks from './tabs/Risks';
 import Quality from './tabs/Quality';
 import Equipment from './tabs/Equipment';
 import Orders from './tabs/Orders';
+import ChatWidget from './components/ChatWidget';
 
 /** Форматирование числа с пробелами разрядов */
 function fmtNum(v) {
@@ -118,6 +119,7 @@ function AppContent() {
         </main>
       </div>
       <Footer />
+      <ChatWidget />
     </div>
   );
 }

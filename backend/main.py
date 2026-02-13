@@ -21,6 +21,7 @@ from api.routes_quality import router as quality_router
 from api.routes_orders import router as orders_router
 from api.routes_equipment import router as equipment_router
 from api.routes_export import router as export_router
+from api.routes_chat import router as chat_router
 
 app = FastAPI(
     title="ТИТАН Аудит ТОРО v.200",
@@ -51,6 +52,7 @@ app.include_router(quality_router)
 app.include_router(orders_router)
 app.include_router(equipment_router)
 app.include_router(export_router)
+app.include_router(chat_router)
 
 
 @app.get("/api/health")
