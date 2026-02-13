@@ -41,7 +41,18 @@ export const ABC_COLORS = {
   "A": "#f43f5e",
   "B": "#fbbf24",
   "C": "#34d399",
-  "Н/Д": "#64748b",
+  "Н/Д": "#94a3b8",
+  "Высококритичное": "#f43f5e",
+  "Оч.высокая/Особокрит": "#ef4444",
+  "Оч.высокая": "#ef4444",
+  "Особокритичное": "#dc2626",
+  "Высокая": "#fb923c",
+  "Средней критичности": "#fbbf24",
+  "Средняя": "#eab308",
+  "Средней крит.": "#eab308",
+  "Не критично": "#34d399",
+  "Низкой критичности": "#22d3ee",
+  "Пусто": "#64748b",
 };
 
 // Recharts цвета
@@ -67,17 +78,17 @@ export const CHART_PALETTES = {
     name: 'Северное сияние',
     colors: ['#34d399', '#a78bfa', '#22d3ee', '#818cf8', '#6ee7b7', '#c084fc', '#2dd4bf', '#a5b4fc', '#4ade80', '#e879f9'],
   },
-  steel: {
-    name: 'Стальной',
-    colors: ['#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b', '#475569', '#f1f5f9', '#9ca3af', '#d1d5db', '#6b7280', '#374151'],
+  titan: {
+    name: 'ТИТАН',
+    colors: ['#f43f5e', '#fbbf24', '#34d399', '#fb923c', '#22d3ee', '#a78bfa', '#38bdf8', '#ef4444', '#4ade80', '#e879f9'],
   },
   fire: {
     name: 'Огненная',
     colors: ['#ef4444', '#f97316', '#f59e0b', '#dc2626', '#ea580c', '#d97706', '#b91c1c', '#c2410c', '#fbbf24', '#fcd34d'],
   },
-  ocean: {
-    name: 'Океан',
-    colors: ['#1e3a5f', '#0d9488', '#06b6d4', '#164e63', '#14b8a6', '#22d3ee', '#0c4a6e', '#2dd4bf', '#67e8f9', '#0e7490'],
+  contrast: {
+    name: 'Контрастная',
+    colors: ['#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#ff922b', '#cc5de8', '#20c997', '#ff6b6b', '#339af0', '#fcc419'],
   },
   neon: {
     name: 'Неон',
@@ -87,9 +98,9 @@ export const CHART_PALETTES = {
 
 // Пресеты размеров шрифта
 export const FONT_SIZE_PRESETS = {
-  S: { tick: 9, label: 10, legend: 10 },
-  M: { tick: 11, label: 12, legend: 12 },
-  L: { tick: 13, label: 14, legend: 14 },
+  S: { tick: 9, label: 10, legend: 10, pie: 10 },
+  M: { tick: 11, label: 12, legend: 12, pie: 12 },
+  L: { tick: 14, label: 16, legend: 15, pie: 14 },
 };
 
 // Шрифты
