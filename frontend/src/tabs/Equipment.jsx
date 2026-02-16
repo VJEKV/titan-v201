@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList, LineChart, Line, AreaChart, Area } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList, LineChart, Line } from 'recharts';
 import { C, ABC_COLORS } from '../theme/arctic';
 import { useFilters } from '../hooks/useFilters';
 import { apiGet, apiDownload } from '../api/client';
@@ -8,6 +8,7 @@ import KpiRow from '../components/KpiRow';
 import SectionTitle from '../components/SectionTitle';
 import Card from '../components/Card';
 import ChartSettings, { useChartSettings } from '../components/ChartSettings';
+import DonutWithLegend from '../components/DonutWithLegend';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "0";
@@ -24,8 +25,6 @@ function fmtNum(v) {
 }
 
 const fmt = v => v ? `${fmtShort(v)} ₽` : '0 ₽';
-
-const RADIAN = Math.PI / 180;
 
 /** Порядок месяцев для хронологической сортировки */
 const MONTH_ORDER = {'Янв':1,'Фев':2,'Мар':3,'Апр':4,'Май':5,'Июн':6,'Июл':7,'Авг':8,'Сен':9,'Окт':10,'Ноя':11,'Дек':12};
@@ -53,7 +52,6 @@ export default function Equipment() {
   const csFreq = useChartSettings('eq-freq');
 
   // Типы графиков
-  const [abcChartType, setAbcChartType] = useState('donut');
   const [classesChartType, setClassesChartType] = useState('hbar');
   const [freqChartType, setFreqChartType] = useState('hbar');
 
@@ -125,7 +123,11 @@ export default function Equipment() {
   const heatColor = (val) => {
     if (!val || val === 0) return 'transparent';
     const ratio = Math.min(val / Math.max(heatMax, 1), 1);
-    return `rgba(56,189,248,${0.1 + ratio * 0.6})`;
+    if (ratio < 0.2) return `rgba(56,189,248,${0.08 + ratio * 0.3})`;
+    if (ratio < 0.4) return `rgba(56,189,248,${0.15 + ratio * 0.5})`;
+    if (ratio < 0.6) return `rgba(56,189,248,${0.25 + ratio * 0.5})`;
+    if (ratio < 0.8) return `rgba(251,191,36,${0.15 + ratio * 0.35})`;
+    return `rgba(244,63,94,${0.2 + ratio * 0.4})`;
   };
 
   /** Кнопка выгрузки Excel по ЕО */
@@ -152,45 +154,8 @@ export default function Equipment() {
     { key: '', label: '', sortable: false },
   ];
 
-  /** Цвета ABC — фиксированный массив, синхронизированный с плашками */
-  const ABC_FIXED_COLORS = abc_data.map(d => ABC_COLORS[d.abc] || C.dim);
-
-  /** Рендер ABC-графика по типу */
-  const renderAbcChart = () => {
-    const useCustom = csAbc.palette !== 'ice';
-    const cellColors = useCustom
-      ? abc_data.map((_, i) => csAbc.paletteColors[i % csAbc.paletteColors.length])
-      : ABC_FIXED_COLORS;
-    const inner = abcChartType === 'pie' ? 0 : 110;
-    return (
-      <ResponsiveContainer width={420} height={420}>
-        <PieChart>
-          <Pie data={abc_data} dataKey="sum" nameKey="abc" cx="50%" cy="50%"
-            innerRadius={inner} outerRadius={180} paddingAngle={2}
-            label={({ name, percent, cx: pcx, cy: pcy, midAngle, outerRadius: oR, startAngle, endAngle }) => {
-              const angle = Math.abs(endAngle - startAngle);
-              if (angle < 15) return null;
-              const radius = oR + 24;
-              const x = pcx + radius * Math.cos(-midAngle * RADIAN);
-              const y = pcy + radius * Math.sin(-midAngle * RADIAN);
-              const displayName = name && name.length > 20 ? name.slice(0, 20) + '...' : name;
-              return (
-                <text x={x} y={y} fill={C.text} fontSize={11} fontFamily={fontFamily} textAnchor={x > pcx ? 'start' : 'end'} dominantBaseline="central">
-                  {displayName} {(percent*100).toFixed(0)}%
-                </text>
-              );
-            }}
-            labelLine={{ stroke: C.muted, strokeWidth: 1 }}>
-            {abc_data.map((d, i) => (
-              <Cell key={i} fill={cellColors[i]} stroke={C.bg} strokeWidth={2} />
-            ))}
-          </Pie>
-          <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
-            itemStyle={{ color: C.text }} formatter={v => [`${fmtShort(v)} ₽`]} />
-        </PieChart>
-      </ResponsiveContainer>
-    );
-  };
+  /** Цвета ABC для DonutWithLegend */
+  const abcColors = abc_data.map(d => ABC_COLORS[d.abc] || C.dim);
 
   /** Рендер графика классов по типу */
   const renderClassesChart = () => {
@@ -309,31 +274,14 @@ export default function Equipment() {
 
       {/* ABC-распределение */}
       {abc_data && abc_data.length > 0 && (
-        <Card title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>1. ABC-критичность оборудования <ChartSettings chartId="eq-abc" chartTypes={[{value:'donut',label:'Бублик'},{value:'pie',label:'Пирог'}]} currentChartType={abcChartType} onChartTypeChange={setAbcChartType} /></span>}>
-          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
-            <div style={{ flex: '0 0 auto' }}>
-              {renderAbcChart()}
-            </div>
-            {/* Компактные плашки ABC — цвет синхронизирован с бубликом */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 220 }}>
-              {abc_data.map((d, i) => {
-                const clr = ABC_FIXED_COLORS[i];
-                return (
-                  <div key={d.abc} style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '4px 8px', borderRadius: 4, height: 30,
-                    background: `${clr}10`,
-                    borderLeft: `3px solid ${clr}`,
-                  }}>
-                    <div style={{ width: 10, height: 10, borderRadius: 2, background: clr, flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: clr, minWidth: 20 }}>{d.abc}</span>
-                    <span style={{ fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>{fmtNum(d.count)} зак.</span>
-                    <span style={{ fontSize: 11, color: clr, whiteSpace: 'nowrap', fontWeight: 600, marginLeft: 'auto' }}>{fmtShort(d.sum)} ₽ ({d.pct}%)</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+        <Card title="1. ABC-критичность оборудования">
+          <DonutWithLegend
+            data={abc_data.map(d => ({ name: d.abc, value: d.sum, count: d.count, pct: d.pct }))}
+            colors={abcColors}
+            chartId="eq-abc"
+            fontSize={fs.pie || 12}
+            fontFamily={fontFamily}
+          />
         </Card>
       )}
 
@@ -450,8 +398,8 @@ export default function Equipment() {
             <table>
               <thead>
                 <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
-                  {['Класс', 'Внеплановых заказов', 'Факт ₽'].map(h => (
-                    <th key={h} style={{ color: C.muted, fontSize: 11, padding: '8px 10px' }}>{h}</th>
+                  {['Класс', 'Внеплановых заказов', 'Факт ₽', ''].map(h => (
+                    <th key={h || 'excel'} style={{ color: C.muted, fontSize: 11, padding: '8px 10px' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -461,6 +409,12 @@ export default function Equipment() {
                     <td style={{ color: C.accent, fontSize: 13, fontWeight: 600, padding: '6px 10px' }}>{r.class_name}</td>
                     <td style={{ color: C.danger, fontSize: 12, textAlign: 'center', fontWeight: 600, padding: '6px 10px' }}>{r.n_orders}</td>
                     <td style={{ color: C.text, fontSize: 12, textAlign: 'right', padding: '6px 10px' }}>{fmtShort(r.fact)} ₽</td>
+                    <td style={{ padding: '6px 10px' }}>
+                      <button onClick={() => apiDownload('/api/export/equipment-class-excel', { session_id: sessionId, filters, thresholds, class_name: r.class_name, unplanned: true })}
+                        style={{ padding: '2px 8px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 4, color: C.accent, cursor: 'pointer', fontSize: 10 }}>
+                        Excel
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -503,7 +457,7 @@ export default function Equipment() {
                       {heatmapMonths.map(m => {
                         const val = heatmapMap[`${eo}|${m}`] || 0;
                         return (
-                          <td key={m} style={{ background: heatColor(val), color: val > 0 ? C.text : C.dim, fontSize: 10, textAlign: 'center', padding: '4px 6px' }}>
+                          <td key={m} style={{ background: heatColor(val), color: val > 0 ? C.text : C.dim, fontSize: 11, textAlign: 'center', padding: '4px 6px' }}>
                             {val > 0 ? fmtShort(val) : ''}
                           </td>
                         );

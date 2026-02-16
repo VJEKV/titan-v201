@@ -333,6 +333,63 @@ async def get_equipment(
     }
 
 
+@router.get("/api/export/equipment-class-excel")
+async def export_equipment_class_excel(
+    session_id: str = Query(...),
+    filters: str = Query("{}"),
+    thresholds: str = Query("{}"),
+    class_name: str = Query(""),
+    unplanned: bool = Query(False),
+):
+    """Выгрузка заказов по классу оборудования (опционально: только внеплановые)."""
+    df_f = _get_df(session_id, filters, thresholds)
+    if df_f is None:
+        return JSONResponse(status_code=404, content={"error": "Сессия не найдена"})
+
+    eo_col = 'EQUNR_Код' if 'EQUNR_Код' in df_f.columns else 'ЕО'
+    eo_name_col = 'ЕО' if 'ЕО' in df_f.columns else eo_col
+
+    # Фильтруем заказы с реальным ЕО
+    df_f = df_f.copy()
+    if eo_col in df_f.columns:
+        has_eo = ~is_empty_eo_mask(df_f[eo_col])
+    else:
+        has_eo = pd.Series(False, index=df_f.index)
+    df_with_eo = df_f[has_eo].copy()
+
+    # Классификация
+    if eo_name_col in df_with_eo.columns:
+        df_with_eo['Класс_ЕО'] = df_with_eo[eo_name_col].apply(classify_equipment)
+    else:
+        df_with_eo['Класс_ЕО'] = 'Без класса'
+
+    # Фильтр по классу
+    if class_name:
+        df_export = df_with_eo[df_with_eo['Класс_ЕО'] == class_name]
+    else:
+        df_export = df_with_eo
+
+    # Фильтр внеплановых
+    if unplanned:
+        if 'ВИД_КОД' in df_export.columns:
+            df_export = df_export[df_export['ВИД_КОД'].isin(ВНЕПЛАНОВЫЕ_ВИДЫ)]
+        elif 'Вид' in df_export.columns:
+            df_export = df_export[df_export['Вид'].str.contains('неплан|аварий|срочн', case=False, na=False)]
+
+    cols = [c for c in ['ID', 'Текст', 'Вид', 'STAT', 'ABC', 'Plan_N', 'Fact_N', 'ТМ', 'ЕО', 'Начало', 'Конец'] if c in df_export.columns]
+    safe_name = re.sub(r'[^\w\s-]', '', class_name)[:20] or 'class'
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_export[cols].to_excel(writer, index=False, sheet_name=safe_name)
+    output.seek(0)
+    fname = f"{'Внеплан_' if unplanned else ''}{safe_name}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={fname}"}
+    )
+
+
 @router.get("/api/export/equipment-excel")
 async def export_equipment_excel(
     session_id: str = Query(...),

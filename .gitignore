@@ -7,3 +7,5 @@ source_v110/
 *.xlsx
 .claude/
 *.log
+.env
+.env

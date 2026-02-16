@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 import { C } from '../theme/arctic';
 import { useFilters } from '../hooks/useFilters';
 import { apiGet } from '../api/client';
@@ -9,6 +9,7 @@ import SectionTitle from '../components/SectionTitle';
 import HeatmapTable from '../components/HeatmapTable';
 import Card from '../components/Card';
 import ChartSettings, { useChartSettings } from '../components/ChartSettings';
+import DonutWithLegend from '../components/DonutWithLegend';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "0";
@@ -31,7 +32,6 @@ export default function Workplaces() {
   const csBar = useChartSettings('wp-bar');
 
   // Типы графиков
-  const [donutType, setDonutType] = useState('donut');
   const [barType, setBarType] = useState('hbar');
 
   useEffect(() => {
@@ -51,41 +51,10 @@ export default function Workplaces() {
   const fsz = csDonut.fontSizes;
   const fontFamily = csDonut.font;
 
-  /** Рендер бублика/пирога */
-  const renderDonut = () => {
-    const colors = csDonut.paletteColors;
-    const inner = donutType === 'pie' ? 0 : 140;
-    const sliceData = rm_data.slice(0, 10);
-    const RADIAN = Math.PI / 180;
-    return (
-      <ResponsiveContainer width="100%" height={620}>
-        <PieChart>
-          <Pie data={sliceData} dataKey="fact" nameKey="name" cx="50%" cy="50%"
-            innerRadius={inner} outerRadius={230} paddingAngle={2}
-            label={({ name, percent, cx: pcx, cy: pcy, midAngle, outerRadius: oR, startAngle, endAngle }) => {
-              const angle = Math.abs(endAngle - startAngle);
-              if (angle < 15) return null;
-              const radius = oR + 30;
-              const x = pcx + radius * Math.cos(-midAngle * RADIAN);
-              const y = pcy + radius * Math.sin(-midAngle * RADIAN);
-              const displayName = name && name.length > 20 ? name.slice(0, 20) + '...' : (name || '');
-              return (
-                <text x={x} y={y} fill={C.text} fontSize={fsz.tick} fontFamily={fontFamily} textAnchor={x > pcx ? 'start' : 'end'} dominantBaseline="central">
-                  {displayName} {(percent*100).toFixed(0)}%
-                </text>
-              );
-            }}
-            labelLine={{ stroke: C.muted, strokeWidth: 1 }}>
-            {sliceData.map((_, i) => (
-              <Cell key={i} fill={colors[i % colors.length]} stroke={C.bg} strokeWidth={2} />
-            ))}
-          </Pie>
-          <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
-            itemStyle={{ color: C.text }} formatter={v => [`${fmtShort(v)} ₽`]} />
-        </PieChart>
-      </ResponsiveContainer>
-    );
-  };
+  /** Данные для DonutWithLegend */
+  const donutSlice = rm_data.slice(0, 10);
+  const donutData = donutSlice.map(d => ({ name: d.name, value: d.fact, count: d.count, pct: null }));
+  const donutColors = csDonut.paletteColors;
 
   /** Рендер бокового бар-чарта */
   const renderSideBar = () => {
@@ -134,27 +103,16 @@ export default function Workplaces() {
       </KpiRow>
 
       {/* Сводная — бублик */}
-      <Card title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>1. Сводная аналитика <ChartSettings chartId="wp-donut" chartTypes={[{value:'donut',label:'Бублик'},{value:'pie',label:'Пирог'}]} currentChartType={donutType} onChartTypeChange={setDonutType} /></span>}>
+      <Card title="1. Сводная аналитика">
         <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 500px' }}>
-            {renderDonut()}
-            {/* Компактная легенда */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 8 }}>
-              {rm_data.slice(0, 10).map((d, i) => {
-                const clr = csDonut.paletteColors[i % csDonut.paletteColors.length];
-                return (
-                  <div key={d.name} style={{
-                    display: 'flex', alignItems: 'center', gap: 8, height: 30, padding: '4px 8px',
-                    borderRadius: 4, background: `${clr}10`, borderLeft: `3px solid ${clr}`,
-                  }}>
-                    <div style={{ width: 10, height: 10, borderRadius: 2, background: clr, flexShrink: 0 }} />
-                    <span style={{ fontSize: 11, color: C.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</span>
-                    <span style={{ fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>{fmtNum(d.count)} зак.</span>
-                    <span style={{ fontSize: 11, color: clr, whiteSpace: 'nowrap', fontWeight: 600 }}>{fmtShort(d.fact)} ₽</span>
-                  </div>
-                );
-              })}
-            </div>
+            <DonutWithLegend
+              data={donutData}
+              colors={donutColors}
+              chartId="wp-donut"
+              fontSize={fsz.pie || 12}
+              fontFamily={fontFamily}
+            />
           </div>
           <div style={{ flex: '1 1 380px' }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>

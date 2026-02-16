@@ -99,7 +99,7 @@ async def get_kpi(
 
     stats = {
         "n_zavod": _nunique('ЗАВОД'),
-        "n_eo": _nunique('ЕО'),
+        "n_eo": _nunique('EQUNR_Код') if 'EQUNR_Код' in df_scored.columns else _nunique('ЕО'),
         "n_ceh": _nunique('ЦЕХ'),
         "n_tm": _nunique('ТМ'),
         "n_users": _nunique('USER'),

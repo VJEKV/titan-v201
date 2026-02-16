@@ -63,7 +63,7 @@ function TypingIndicator() {
  * ChatWidget — плавающий чат-бот аналитик ТИТАН
  */
 export default function ChatWidget() {
-  const { sessionId } = useFilters();
+  const { sessionId, filters, thresholds } = useFilters();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([WELCOME_MESSAGE]);
   const [input, setInput] = useState('');
@@ -100,6 +100,8 @@ export default function ChatWidget() {
           session_id: sessionId,
           message: 'ping',
           history: [],
+          filters: JSON.stringify(filters),
+          thresholds: JSON.stringify(thresholds),
         }),
       });
       const data = await res.json();
@@ -131,6 +133,8 @@ export default function ChatWidget() {
           session_id: sessionId,
           message: text,
           history,
+          filters: JSON.stringify(filters),
+          thresholds: JSON.stringify(thresholds),
         }),
       });
 
@@ -147,7 +151,7 @@ export default function ChatWidget() {
     } finally {
       setLoading(false);
     }
-  }, [input, loading, sessionId, messages]);
+  }, [input, loading, sessionId, messages, filters, thresholds]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
