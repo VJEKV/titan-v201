@@ -17,38 +17,25 @@ function fmtNum(v) {
   return Number(v).toLocaleString('ru-RU', { maximumFractionDigits: 0 });
 }
 
-/**
- * Универсальный компонент бублик + легенда.
- * @param {Object[]} data — массив { name, value, count, pct }
- * @param {string[]} colors — цвета секций
- * @param {string} chartId — id для ключей
- * @param {number} height — высота графика (380)
- * @param {number} innerRadius — внутренний радиус (90)
- * @param {number} outerRadius — внешний радиус (150)
- * @param {number} fontSize — размер шрифта подписей (12)
- * @param {string} fontFamily — шрифт (Inter)
- * @param {number} minAngle — минимальный угол для отображения подписи (25)
- * @param {number} maxLabelLen — макс. длина подписи (16)
- */
 export default function DonutWithLegend({
   data,
   colors,
   chartId = 'donut',
-  height = 420,
-  innerRadius = 80,
-  outerRadius = 145,
-  fontSize = 13,
+  height = 450,
+  innerRadius = 90,
+  outerRadius = 155,
+  fontSize = 11,
   fontFamily = 'Inter',
-  minAngle = 30,
-  maxLabelLen = 28,
+  minAngle = 35,
 }) {
   if (!data || data.length === 0) return null;
 
+  const total = data.reduce((s, d) => s + (d.value || 0), 0);
+
   return (
-    <div style={{ display: 'flex', gap: 30, flexWrap: 'wrap', alignItems: 'flex-start', width: '100%', justifyContent: 'center' }}>
-      {/* Бублик */}
-      <div style={{ flex: '1 1 380px', minWidth: 320, maxWidth: 500 }}>
-        <ResponsiveContainer width="100%" height={420}>
+    <div style={{ display: 'flex', gap: 30, flexWrap: 'wrap', alignItems: 'center', width: '100%', justifyContent: 'center' }}>
+      <div style={{ flex: '1 1 450px', minWidth: 350, maxWidth: 600 }}>
+        <ResponsiveContainer width="100%" height={height}>
           <PieChart>
             <Pie
               data={data}
@@ -62,19 +49,20 @@ export default function DonutWithLegend({
               label={({ name, percent, cx: pcx, cy: pcy, midAngle, outerRadius: oR, startAngle, endAngle }) => {
                 const angle = Math.abs(endAngle - startAngle);
                 if (angle < minAngle) return null;
-                const radius = oR + 50;
+                const radius = oR + 60;
                 const x = pcx + radius * Math.cos(-midAngle * RADIAN);
                 const y = pcy + radius * Math.sin(-midAngle * RADIAN);
-                const displayName = name && name.length > maxLabelLen ? name.slice(0, maxLabelLen) + '...' : (name || '');
-                const pctLabel = percent != null ? ` ${(percent * 100).toFixed(0)}%` : '';
+                const pct = (percent * 100).toFixed(0);
+                const val = fmtShort(data.find(d => d.name === name)?.value || 0);
                 return (
-                  <text x={x} y={y} fill="#fff" fontSize={fontSize} fontWeight={600} fontFamily={fontFamily}
+                  <text x={x} y={y} fill="#e2e8f0" fontSize={fontSize} fontWeight={600} fontFamily={fontFamily}
                     textAnchor={x > pcx ? 'start' : 'end'} dominantBaseline="central">
-                    {displayName}{pctLabel}
+                    <tspan x={x} dy="0">{name}</tspan>
+                    <tspan x={x} dy="16">{pct}% | {val} \u20BD</tspan>
                   </text>
                 );
               }}
-              labelLine={{ stroke: C.muted, strokeWidth: 1 }}
+              labelLine={{ stroke: '#64748b', strokeWidth: 1 }}
             >
               {data.map((_, i) => (
                 <Cell key={`${chartId}-cell-${i}`} fill={colors[i % colors.length]} stroke={C.bg} strokeWidth={2} />
@@ -83,31 +71,34 @@ export default function DonutWithLegend({
             <Tooltip
               contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
               itemStyle={{ color: C.text }}
-              formatter={v => [`${fmtShort(v)} ₽`]}
+              formatter={v => [`${fmtShort(v)} \u20BD`]}
             />
           </PieChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Легенда */}
-      <div style={{ flex: '1 1 350px', minWidth: 280, maxWidth: 500, display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ flex: '1 1 380px', minWidth: 300, maxWidth: 550, display: 'flex', flexDirection: 'column', gap: 5 }}>
         {data.map((d, i) => {
           const clr = colors[i % colors.length];
+          const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0';
           return (
             <div key={`${chartId}-leg-${i}`} style={{
               display: 'flex', alignItems: 'center', gap: 10,
-              padding: '4px 10px', borderRadius: 6, minHeight: 34,
+              padding: '5px 12px', borderRadius: 6, minHeight: 34,
               background: `${clr}18`, borderLeft: `4px solid ${clr}`,
             }}>
               <div style={{ width: 12, height: 12, borderRadius: 2, background: clr, flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: clr, flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: clr, flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                title={d.name}>
                 {d.name}
               </span>
-              <span style={{ fontSize: 11, color: C.text, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                {fmtNum(d.count)} зак.
-              </span>
-              <span style={{ fontSize: 10, color: C.muted, marginLeft: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                {fmtShort(d.value)} ₽ {d.pct != null ? `(${d.pct}%)` : ''}
+              {d.count != null && (
+                <span style={{ fontSize: 12, color: C.text, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  {fmtNum(d.count)} \u0437\u0430\u043a.
+                </span>
+              )}
+              <span style={{ fontSize: 11, color: C.muted, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                {fmtShort(d.value)} \u20BD ({d.pct != null ? d.pct : pct}%)
               </span>
             </div>
           );

@@ -155,7 +155,7 @@ export default function Equipment() {
   ];
 
   /** Цвета ABC для DonutWithLegend */
-  const abcColors = abc_data.map(d => ABC_COLORS[d.abc] || C.dim);
+  const abcColors = csAbc.paletteColors;
 
   /** Рендер графика классов по типу */
   const renderClassesChart = () => {
