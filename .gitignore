@@ -1,11 +1,7 @@
 node_modules/
+backend/data/
+source_v110/
+backend/tm_structure.json
 __pycache__/
 *.pyc
-.venv/
-source_v110/
-*.xlsx
-.claude/
-*.log
 .env
-.env
-node_modules/
