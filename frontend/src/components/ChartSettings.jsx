@@ -9,7 +9,7 @@ export function getChartSettings() {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  return { font: 'Inter', fontSize: 'M', palette: 'ice' };
+  return { font: 'Inter', fontSize: 'M', palette: 'titan' };
 }
 
 /** Сохранить глобальные настройки */
