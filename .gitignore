@@ -8,3 +8,4 @@ source_v110/
 *.log
 .env
 .env
+node_modules/
