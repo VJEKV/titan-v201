@@ -58,7 +58,7 @@ export default function DonutWithLegend({
                   <text x={x} y={y} fill="#e2e8f0" fontSize={fontSize} fontWeight={600} fontFamily={fontFamily}
                     textAnchor={x > pcx ? 'start' : 'end'} dominantBaseline="central">
                     <tspan x={x} dy="0">{name}</tspan>
-                    <tspan x={x} dy="16">{pct}% | {val} \u20BD</tspan>
+                    <tspan x={x} dy="16">{pct}% | {val} ₽</tspan>
                   </text>
                 );
               }}
@@ -71,7 +71,7 @@ export default function DonutWithLegend({
             <Tooltip
               contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
               itemStyle={{ color: C.text }}
-              formatter={v => [`${fmtShort(v)} \u20BD`]}
+              formatter={v => [`${fmtShort(v)} ₽`]}
             />
           </PieChart>
         </ResponsiveContainer>
@@ -94,11 +94,11 @@ export default function DonutWithLegend({
               </span>
               {d.count != null && (
                 <span style={{ fontSize: 12, color: C.text, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  {fmtNum(d.count)} \u0437\u0430\u043a.
+                  {fmtNum(d.count)} зак.
                 </span>
               )}
               <span style={{ fontSize: 11, color: C.muted, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                {fmtShort(d.value)} \u20BD ({d.pct != null ? d.pct : pct}%)
+                {fmtShort(d.value)} ₽ ({d.pct != null ? d.pct : pct}%)
               </span>
             </div>
           );
