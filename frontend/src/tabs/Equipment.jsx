@@ -272,9 +272,12 @@ export default function Equipment() {
         <KpiCard title="СРЕДН. ЗАКАЗОВ/ЕО" value={kpi.avg_orders_per_eo} />
       </KpiRow>
 
-      {/* ABC-распределение */}
+{/* ABC-распределение */}
       {abc_data && abc_data.length > 0 && (
         <Card title="1. ABC-критичность оборудования">
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+            <ChartSettings chartId="eq-abc" />
+          </div>
           <DonutWithLegend
             data={abc_data.map(d => ({ name: d.abc, value: d.sum, count: d.count, pct: d.pct }))}
             colors={abcColors}

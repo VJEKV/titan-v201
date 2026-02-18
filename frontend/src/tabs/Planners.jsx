@@ -141,10 +141,13 @@ export default function Planners() {
         <HeatmapTable data={ingrp_data} />
       </Card>
 
-      {/* Сводная — бублик */}
+{/* Сводная — бублик */}
       <Card title="Сводная по группам">
         <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 500px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+              <ChartSettings chartId="pl-donut" />
+            </div>
             <DonutWithLegend
               data={donutData}
               colors={donutColors}

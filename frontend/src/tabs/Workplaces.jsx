@@ -102,10 +102,13 @@ export default function Workplaces() {
         <KpiCard title="С ПЕРЕРАСХОДОМ" value={`${kpi.overrun_count} РМ`} color={C.warning} />
       </KpiRow>
 
-      {/* Сводная — бублик */}
+{/* Сводная — бублик */}
       <Card title="1. Сводная аналитика">
         <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 500px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+              <ChartSettings chartId="wp-donut" />
+            </div>
             <DonutWithLegend
               data={donutData}
               colors={donutColors}

@@ -120,8 +120,11 @@ export default function WorkTypes() {
       {/* Donut + Bars */}
       <Card title="2. Сводная аналитика">
         <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-          <div style={{ flex: '1 1 500px' }}>
-            <DonutWithLegend
+        <div style={{ flex: '1 1 500px' }}>
+           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+            <ChartSettings chartId="wt-donut" />
+        </div>
+    <DonutWithLegend
               data={donutData}
               colors={donutColors}
               chartId="wt-donut"
