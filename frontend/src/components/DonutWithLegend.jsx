@@ -45,10 +45,10 @@ export default function DonutWithLegend({
   if (!data || data.length === 0) return null;
 
   return (
-    <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: 30, flexWrap: 'wrap', alignItems: 'flex-start', width: '100%', justifyContent: 'center' }}>
       {/* Бублик */}
-      <div style={{ flex: '0 0 auto' }}>
-        <ResponsiveContainer width={height} height={height}>
+      <div style={{ flex: '1 1 380px', minWidth: 320, maxWidth: 500 }}>
+        <ResponsiveContainer width="100%" height={420}>
           <PieChart>
             <Pie
               data={data}
@@ -90,23 +90,23 @@ export default function DonutWithLegend({
       </div>
 
       {/* Легенда */}
-      <div style={{ flex: '0 1 420px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ flex: '1 1 350px', minWidth: 280, maxWidth: 500, display: 'flex', flexDirection: 'column', gap: 4 }}>
         {data.map((d, i) => {
           const clr = colors[i % colors.length];
           return (
             <div key={`${chartId}-leg-${i}`} style={{
-              display: 'flex', alignItems: 'center', gap: 8,
+              display: 'flex', alignItems: 'center', gap: 10,
               padding: '4px 10px', borderRadius: 6, minHeight: 34,
               background: `${clr}18`, borderLeft: `4px solid ${clr}`,
             }}>
               <div style={{ width: 12, height: 12, borderRadius: 2, background: clr, flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: clr, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: clr, flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {d.name}
               </span>
-              <span style={{ fontSize: 11, color: C.text, whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 11, color: C.text, whiteSpace: 'nowrap', flexShrink: 0 }}>
                 {fmtNum(d.count)} зак.
               </span>
-              <span style={{ fontSize: 10, color: C.muted, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 10, color: C.muted, marginLeft: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}>
                 {fmtShort(d.value)} ₽ {d.pct != null ? `(${d.pct}%)` : ''}
               </span>
             </div>
