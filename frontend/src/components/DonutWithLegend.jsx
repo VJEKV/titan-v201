@@ -34,13 +34,13 @@ export default function DonutWithLegend({
   data,
   colors,
   chartId = 'donut',
-  height = 380,
-  innerRadius = 90,
-  outerRadius = 150,
-  fontSize = 12,
+  height = 420,
+  innerRadius = 80,
+  outerRadius = 145,
+  fontSize = 13,
   fontFamily = 'Inter',
-  minAngle = 25,
-  maxLabelLen = 16,
+  minAngle = 30,
+  maxLabelLen = 28,
 }) {
   if (!data || data.length === 0) return null;
 
@@ -59,17 +59,18 @@ export default function DonutWithLegend({
               innerRadius={innerRadius}
               outerRadius={outerRadius}
               paddingAngle={2}
-              label={({ name, cx: pcx, cy: pcy, midAngle, outerRadius: oR, startAngle, endAngle }) => {
+              label={({ name, percent, cx: pcx, cy: pcy, midAngle, outerRadius: oR, startAngle, endAngle }) => {
                 const angle = Math.abs(endAngle - startAngle);
                 if (angle < minAngle) return null;
-                const radius = oR + 35;
+                const radius = oR + 50;
                 const x = pcx + radius * Math.cos(-midAngle * RADIAN);
                 const y = pcy + radius * Math.sin(-midAngle * RADIAN);
                 const displayName = name && name.length > maxLabelLen ? name.slice(0, maxLabelLen) + '...' : (name || '');
+                const pctLabel = percent != null ? ` ${(percent * 100).toFixed(0)}%` : '';
                 return (
                   <text x={x} y={y} fill="#fff" fontSize={fontSize} fontWeight={600} fontFamily={fontFamily}
                     textAnchor={x > pcx ? 'start' : 'end'} dominantBaseline="central">
-                    {displayName}
+                    {displayName}{pctLabel}
                   </text>
                 );
               }}
@@ -89,17 +90,17 @@ export default function DonutWithLegend({
       </div>
 
       {/* Легенда */}
-      <div style={{ flex: '0 1 360px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ flex: '0 1 420px', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {data.map((d, i) => {
           const clr = colors[i % colors.length];
           return (
             <div key={`${chartId}-leg-${i}`} style={{
               display: 'flex', alignItems: 'center', gap: 8,
-              padding: '4px 10px', borderRadius: 6, height: 30,
-              background: `${clr}12`, borderLeft: `3px solid ${clr}`,
+              padding: '4px 10px', borderRadius: 6, minHeight: 34,
+              background: `${clr}18`, borderLeft: `4px solid ${clr}`,
             }}>
-              <div style={{ width: 10, height: 10, borderRadius: 2, background: clr, flexShrink: 0 }} />
-              <span style={{ fontSize: 11, fontWeight: 600, color: clr, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ width: 12, height: 12, borderRadius: 2, background: clr, flexShrink: 0 }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: clr, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {d.name}
               </span>
               <span style={{ fontSize: 11, color: C.text, whiteSpace: 'nowrap' }}>

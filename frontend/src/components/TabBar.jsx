@@ -33,11 +33,11 @@ export default function TabBar({ activeTab, onTabChange }) {
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
             style={{
-              padding: '10px 16px',
+              padding: '12px 20px',
               borderRadius: 6,
               border: 'none',
               cursor: 'pointer',
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: active ? 600 : 400,
               color: active ? C.accent : C.muted,
               background: active ? C.card : 'transparent',

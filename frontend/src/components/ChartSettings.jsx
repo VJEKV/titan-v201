@@ -37,8 +37,8 @@ function saveChartPalette(chartId, paletteKey) {
 export function getColorsForChart(chartId) {
   const globalSettings = getChartSettings();
   const localPalette = getChartPalette(chartId);
-  const palette = localPalette || globalSettings.palette || 'ice';
-  return CHART_PALETTES[palette]?.colors || CHART_PALETTES.ice.colors;
+  const palette = localPalette || globalSettings.palette || 'titan';
+  return CHART_PALETTES[palette]?.colors || CHART_PALETTES.titan.colors;
 }
 
 /** Хук для использования настроек с реактивным обновлением.
@@ -72,8 +72,8 @@ export function useChartSettings(chartId) {
   }, [chartId]);
 
   // Палитра: сначала индивидуальная для графика, затем глобальная
-  const activePalette = localPalette || settings.palette || 'ice';
-  const paletteColors = CHART_PALETTES[activePalette]?.colors || CHART_PALETTES.ice.colors;
+  const activePalette = localPalette || settings.palette || 'titan';
+  const paletteColors = CHART_PALETTES[activePalette]?.colors || CHART_PALETTES.titan.colors;
   const fontSizes = FONT_SIZE_PRESETS[settings.fontSize] || FONT_SIZE_PRESETS.M;
 
   return { ...settings, _rev, palette: activePalette, paletteColors, fontSizes, getColorsForChart };
@@ -102,7 +102,7 @@ export default function ChartSettings({ chartId, chartTypes, currentChartType, o
   const panelRef = useRef(null);
 
   // Активная палитра для данного графика
-  const activePalette = localPalette || settings.palette || 'ice';
+  const activePalette = localPalette || settings.palette || 'titan';
 
   // Закрытие при клике вне панели
   useEffect(() => {

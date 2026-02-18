@@ -11,7 +11,7 @@ export function usePerChartSettings(tabName, chartId) {
   const key = `chart_${tabName}_${chartId}`;
 
   const getDefaults = () => ({
-    palette: 'ice',
+    palette: 'titan',
     height: 350,
     fontSize: 'M',
     showLabels: true,
@@ -48,7 +48,7 @@ export function usePerChartSettings(tabName, chartId) {
     });
   }, [key]);
 
-  const colors = CHART_PALETTES[settings.palette]?.colors || CHART_PALETTES.ice.colors;
+  const colors = CHART_PALETTES[settings.palette]?.colors || CHART_PALETTES.titan.colors;
   const fontSizes = FONT_SIZE_PRESETS[settings.fontSize] || FONT_SIZE_PRESETS.M;
 
   return { settings, updateSettings, colors, fontSizes };

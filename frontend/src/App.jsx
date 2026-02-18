@@ -60,6 +60,16 @@ function AppContent() {
   const [activeMethod, setActiveMethod] = useState(null);
   const [kpi, setKpi] = useState(null);
 
+  // Сброс старых кешированных палитр ice при первом запуске v200
+  useEffect(() => {
+    if (!localStorage.getItem('titan_version_200')) {
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('titan_chart_')) localStorage.removeItem(k);
+      });
+      localStorage.setItem('titan_version_200', 'true');
+    }
+  }, []);
+
   // Загрузка KPI при изменении фильтров
   useEffect(() => {
     if (!sessionId) return;
