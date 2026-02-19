@@ -81,7 +81,7 @@ export default function Quality() {
   return (
     <div style={{ fontFamily }}>
       <SectionTitle sub="Проверка полноты заполнения полей из справочника">
-        C4: Анализ качества данных
+        Качество данных
       </SectionTitle>
 
       <KpiRow>

@@ -13,7 +13,7 @@ from utils.filters import apply_hierarchy_filters, apply_extra_filters
 from core.aggregates import compute_aggregates
 from core.risk_scoring_v2 import apply_risk_scoring_v2
 from utils.formatters import fmt_short, fmt
-from config.constants import METHODS_RISK
+from config.constants import METHODS_RISK, FIELD_MAPPING, RENAMED_TO_ORIGINAL, EMPTY_VALUES
 
 router = APIRouter()
 
@@ -25,6 +25,43 @@ def _safe_float(val):
     if pd.isna(val) or val is None:
         return 0.0
     return float(val)
+
+
+def _is_empty(val) -> bool:
+    """Проверка: является ли значение пустым (аналог из routes_quality)."""
+    if val is None:
+        return True
+    if pd.isna(val):
+        return True
+    if hasattr(val, 'year'):
+        try:
+            return val.year <= 1971
+        except Exception:
+            return True
+    str_val = str(val).strip()
+    return str_val in EMPTY_VALUES or len(str_val) == 0
+
+
+def _calc_fill_rate(df):
+    """Расчёт fill_rate — та же формула что и в routes_quality."""
+    columns_map = {}
+    for col in df.columns:
+        if col in FIELD_MAPPING:
+            columns_map[col] = FIELD_MAPPING[col]
+        elif col in RENAMED_TO_ORIGINAL:
+            original = RENAMED_TO_ORIGINAL[col]
+            if original in FIELD_MAPPING:
+                columns_map[col] = FIELD_MAPPING[original]
+    if not columns_map:
+        return 0.0
+    total_rows = len(df)
+    total_empty = 0
+    for col in columns_map:
+        total_empty += sum(1 for val in df[col] if _is_empty(val))
+    total_cells = total_rows * len(columns_map)
+    if total_cells == 0:
+        return 0.0
+    return round(((total_cells - total_empty) / total_cells * 100), 1)
 
 
 @router.get("/api/kpi")
@@ -72,7 +109,8 @@ async def get_kpi(
     risk_count = len(risk_orders)
     risk_pct = risk_count / max(total, 1) * 100
 
-    completeness = _safe_float(df_scored['Data_Completeness'].mean()) if 'Data_Completeness' in df_scored.columns else 0
+    # fill_rate — та же формула что на вкладке «Качество данных»
+    completeness = _calc_fill_rate(df_scored)
 
     # Максимальные карточки
     max_fact_row = df_scored.loc[df_scored['Fact_N'].idxmax()] if total > 0 else None

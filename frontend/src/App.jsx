@@ -106,7 +106,7 @@ function AppContent() {
                 <KpiCard title="ФАКТ (Σ)" value={`${kpi.fact_fmt || fmtShort(kpi.fact)} \u20BD`} />
                 <KpiCard title="ОТКЛОНЕНИЕ" value={`${kpi.dev_fmt || fmtShort(Math.abs(kpi.dev))} \u20BD`} sub={`${kpi.dev_pct > 0 ? '+' : ''}${kpi.dev_pct}%`} color={kpi.dev > 0 ? C.danger : C.success} />
                 <KpiCard title="С РИСКОМ" value={fmtNum(kpi.risk_count)} sub={`${kpi.risk_pct}%`} color={C.warning} />
-                <KpiCard title="ПОЛНОТА" value={`${kpi.completeness}%`} color={C.accent} />
+                <KpiCard title="КАЧЕСТВО ДАННЫХ" value={`${kpi.completeness}%`} color={kpi.completeness > 80 ? C.success : C.warning} />
               </KpiRow>
               {/* KPI — статистика по выгрузке */}
               {kpi.stats && (
