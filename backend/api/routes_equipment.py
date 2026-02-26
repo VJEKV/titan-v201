@@ -293,7 +293,7 @@ async def get_equipment(
                     "max_interval": round(max_interval, 0),
                 })
         intervals.sort(key=lambda x: x['avg_interval'])
-        frequency = intervals[:30]
+        frequency = intervals[:100]
         print(f"[FREQ DEBUG] frequency result count: {len(frequency)}")
 
     # === 7. ABC-распределение ===

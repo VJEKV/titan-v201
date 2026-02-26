@@ -74,6 +74,34 @@ export default function Equipment() {
       .finally(() => setExpandedLoading(false));
   };
 
+  // Частота обслуживания: сортировка + accordion
+  const [freqSort, setFreqSort] = useState({ col: 'avg_interval', dir: 'asc' });
+  const [freqExpandedEo, setFreqExpandedEo] = useState(null);
+  const [freqExpandedOrders, setFreqExpandedOrders] = useState([]);
+  const [freqExpandedLoading, setFreqExpandedLoading] = useState(false);
+
+  const handleFreqSort = (col) => {
+    if (freqSort.col === col) {
+      setFreqSort({ col, dir: freqSort.dir === 'desc' ? 'asc' : 'desc' });
+    } else {
+      setFreqSort({ col, dir: col === 'equipment_name' || col === 'eo' ? 'asc' : 'desc' });
+    }
+  };
+
+  const toggleFreqExpand = (eoCode) => {
+    if (freqExpandedEo === eoCode) {
+      setFreqExpandedEo(null);
+      setFreqExpandedOrders([]);
+      return;
+    }
+    setFreqExpandedEo(eoCode);
+    setFreqExpandedLoading(true);
+    apiGet('/api/equipment/orders', { session_id: sessionId, filters, thresholds, eo_code: eoCode })
+      .then(res => setFreqExpandedOrders(res.orders || []))
+      .catch(() => setFreqExpandedOrders([]))
+      .finally(() => setFreqExpandedLoading(false));
+  };
+
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
@@ -223,10 +251,10 @@ export default function Equipment() {
     );
   };
 
-  /** Рендер графика частоты по типу */
+  /** Рендер графика частоты по типу (TOP-30 для читаемости) */
   const renderFreqChart = () => {
     const freqMainColor = csFreq.paletteColors[0];
-    const freqData = frequency.map(f => ({ ...f, eo_label: f.equipment_name ? `${f.eo} ${f.equipment_name}` : f.eo }));
+    const freqData = frequency.slice(0, 30).map(f => ({ ...f, eo_label: f.equipment_name ? `${f.eo} ${f.equipment_name}` : f.eo }));
     if (freqChartType === 'vbar') {
       return (
         <ResponsiveContainer width="100%" height={380}>
@@ -549,39 +577,115 @@ export default function Equipment() {
       )}
 
       {/* 7. Частота обслуживания */}
-      {frequency.length > 0 && (
+      {frequency.length > 0 && (() => {
+        // Сортировка частоты
+        const freqHeaders = [
+          { key: 'eo', label: 'Код ЕО' },
+          { key: 'equipment_name', label: 'Название ЕО' },
+          { key: 'n_orders', label: 'Кол-во заказов' },
+          { key: 'avg_interval', label: 'Средний интервал (дни)' },
+          { key: 'min_interval', label: 'Мин интервал' },
+          { key: 'max_interval', label: 'Макс интервал' },
+        ];
+        const sortedFreq = [...frequency].sort((a, b) => {
+          const dir = freqSort.dir === 'desc' ? -1 : 1;
+          const av = a[freqSort.col], bv = b[freqSort.col];
+          if (typeof av === 'string') return dir * (av || '').localeCompare(bv || '');
+          return dir * ((av || 0) - (bv || 0));
+        });
+        return (
         <Card title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>7. Частота обслуживания — средний интервал между заказами (дни) <ChartSettings chartId="eq-freq" chartTypes={[{value:'hbar',label:'Горизонт.'},{value:'vbar',label:'Вертикал.'},{value:'line',label:'Линия'}]} currentChartType={freqChartType} onChartTypeChange={setFreqChartType} /></span>}>
           <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
-            TOP-{frequency.length} ЕО с наименьшим интервалом (только ЕО с 2+ заказами). Отсортировано по наименьшему среднему интервалу.
+            TOP-{frequency.length} ЕО с 2+ заказами. Нажмите на заголовок столбца для сортировки, на название ЕО — для детализации заказов.
           </div>
-          {/* Таблица частоты обслуживания */}
-          <div style={{ overflowX: 'auto', marginBottom: 16, borderRadius: 8, border: `1px solid ${C.border}` }}>
+          {/* Таблица частоты обслуживания — 30 видимых, остальные в прокрутку */}
+          <div style={{ overflowX: 'auto', maxHeight: 30 * 36 + 42, overflowY: 'auto', marginBottom: 16, borderRadius: 8, border: `1px solid ${C.border}` }}>
             <table>
-              <thead>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
                 <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
-                  {['Код ЕО', 'Название ЕО', 'Кол-во заказов', 'Средний интервал (дни)', 'Мин интервал', 'Макс интервал'].map(h => (
-                    <th key={h} style={{ color: C.muted, fontSize: 11, padding: '8px 10px', whiteSpace: 'nowrap' }}>{h}</th>
+                  <th style={{ color: C.dim, fontSize: 11, padding: '8px 6px', width: 30 }}>#</th>
+                  {freqHeaders.map(h => (
+                    <th key={h.key}
+                      onClick={() => handleFreqSort(h.key)}
+                      style={{
+                        color: freqSort.col === h.key ? C.accent : C.muted,
+                        fontSize: 11, padding: '8px 10px', whiteSpace: 'nowrap',
+                        cursor: 'pointer', userSelect: 'none',
+                      }}>
+                      {h.label} {freqSort.col === h.key ? (freqSort.dir === 'desc' ? '▼' : '▲') : ''}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {frequency.map((f, i) => (
-                  <tr key={i} style={{ borderBottom: `1px solid ${C.border}33` }}>
-                    <td style={{ color: C.accent, fontSize: 12, fontWeight: 600, padding: '6px 10px' }}>{f.eo}</td>
-                    <td style={{ color: C.text, fontSize: 12, padding: '6px 10px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                      title={f.equipment_name}>{f.equipment_name || '—'}</td>
-                    <td style={{ color: C.text, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.n_orders}</td>
-                    <td style={{ color: C.warning, fontSize: 12, textAlign: 'center', padding: '6px 10px', fontWeight: 600 }}>{f.avg_interval} дн.</td>
-                    <td style={{ color: C.success, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.min_interval ?? '—'} дн.</td>
-                    <td style={{ color: C.danger, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.max_interval ?? '—'} дн.</td>
-                  </tr>
-                ))}
+                {sortedFreq.map((f, i) => {
+                  const isFreqExpanded = freqExpandedEo === f.eo;
+                  return (
+                    <React.Fragment key={i}>
+                      <tr style={{ borderBottom: `1px solid ${C.border}33` }}>
+                        <td style={{ color: C.dim, fontSize: 11, padding: '6px 6px', textAlign: 'center' }}>{i + 1}</td>
+                        <td style={{ color: C.accent, fontSize: 12, fontWeight: 600, padding: '6px 10px' }}>{f.eo}</td>
+                        <td onClick={() => toggleFreqExpand(f.eo)}
+                          style={{ color: C.text, fontSize: 12, padding: '6px 10px', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
+                          title={`${f.equipment_name || '—'} — нажмите для детализации`}>
+                          {isFreqExpanded ? '▼ ' : '▶ '}{f.equipment_name || '—'}
+                        </td>
+                        <td style={{ color: C.text, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.n_orders}</td>
+                        <td style={{ color: C.warning, fontSize: 12, textAlign: 'center', padding: '6px 10px', fontWeight: 600 }}>{f.avg_interval} дн.</td>
+                        <td style={{ color: C.success, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.min_interval ?? '—'} дн.</td>
+                        <td style={{ color: C.danger, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.max_interval ?? '—'} дн.</td>
+                      </tr>
+                      {isFreqExpanded && (
+                        <tr>
+                          <td colSpan={freqHeaders.length + 1} style={{ padding: 0 }}>
+                            <div style={{
+                              background: 'linear-gradient(145deg, #1e293b 0%, #1a2332 100%)',
+                              padding: '12px 16px', borderLeft: `3px solid ${C.cyan}`,
+                              margin: '0 8px 8px 8px', borderRadius: '0 0 8px 8px',
+                            }}>
+                              {freqExpandedLoading ? (
+                                <p style={{ color: C.muted, fontSize: 12 }}>Загрузка заказов...</p>
+                              ) : freqExpandedOrders.length === 0 ? (
+                                <p style={{ color: C.muted, fontSize: 12 }}>Нет заказов</p>
+                              ) : (
+                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                  <thead>
+                                    <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                                      {['Заказ', 'Дата', 'Вид работ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽'].map(h => (
+                                        <th key={h} style={{ color: C.dim, fontSize: 10, padding: '4px 8px', textAlign: 'left', fontWeight: 600 }}>{h}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {freqExpandedOrders.map((ord, j) => (
+                                      <tr key={j} style={{ borderBottom: `1px solid ${C.border}22` }}>
+                                        <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>{ord.id}</td>
+                                        <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date}</td>
+                                        <td style={{ color: C.text, fontSize: 11, padding: '4px 8px' }}>{ord.vid}</td>
+                                        <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px' }}>{ord.stat}</td>
+                                        <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                          title={ord.text}>{ord.text}</td>
+                                        <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.plan)}</td>
+                                        <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.fact)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
           {renderFreqChart()}
         </Card>
-      )}
+        );
+      })()}
     </div>
   );
 }
