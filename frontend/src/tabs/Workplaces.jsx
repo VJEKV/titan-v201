@@ -34,12 +34,36 @@ export default function Workplaces() {
   // Типы графиков
   const [barType, setBarType] = useState('hbar');
 
+  // Аккордеон РМ (общий для перерасхода и экономии)
+  const [rmExpanded, setRmExpanded] = useState(null);
+  const [rmOrders, setRmOrders] = useState([]);
+  const [rmTotal, setRmTotal] = useState(0);
+  const [rmPage, setRmPage] = useState(1);
+  const [rmLoading, setRmLoading] = useState(false);
+
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
     apiGet('/api/tab/workplaces', { session_id: sessionId, filters, thresholds })
       .then(setData).catch(() => {}).finally(() => setLoading(false));
+    setRmExpanded(null); setRmOrders([]); setRmPage(1);
   }, [sessionId, filters, thresholds]);
+
+  const fetchRmOrders = (name, page) => {
+    setRmLoading(true);
+    apiGet('/api/workplaces/orders', {
+      session_id: sessionId, filters, thresholds,
+      rm: name, page, page_size: 20,
+    })
+      .then(res => { setRmOrders(res.orders || []); setRmTotal(res.total || 0); })
+      .catch(() => { setRmOrders([]); setRmTotal(0); })
+      .finally(() => setRmLoading(false));
+  };
+  const toggleRmExpand = (name) => {
+    if (rmExpanded === name) { setRmExpanded(null); setRmOrders([]); setRmTotal(0); setRmPage(1); return; }
+    setRmExpanded(name); setRmPage(1); fetchRmOrders(name, 1);
+  };
+  const handleRmPage = (p) => { setRmPage(p); fetchRmOrders(rmExpanded, p); };
 
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;
@@ -129,14 +153,22 @@ export default function Workplaces() {
       {/* Перерасход */}
       {overrun.length > 0 && (
         <Card title="2. РМ с перерасходом" borderColor={C.danger}>
-          <HeatmapTable data={overrun.slice(0, 15)} />
+          <HeatmapTable data={overrun.slice(0, 15)} expandable
+            expandedName={rmExpanded} onToggleExpand={toggleRmExpand}
+            expandedOrders={rmOrders} expandedTotal={rmTotal}
+            expandedLoading={rmLoading} expandedPage={rmPage}
+            onPageChange={handleRmPage} />
         </Card>
       )}
 
       {/* Экономия */}
       {savings.length > 0 && (
         <Card title="3. РМ с экономией" borderColor={C.success}>
-          <HeatmapTable data={savings.slice(0, 15)} />
+          <HeatmapTable data={savings.slice(0, 15)} expandable
+            expandedName={rmExpanded} onToggleExpand={toggleRmExpand}
+            expandedOrders={rmOrders} expandedTotal={rmTotal}
+            expandedLoading={rmLoading} expandedPage={rmPage}
+            onPageChange={handleRmPage} />
         </Card>
       )}
     </div>

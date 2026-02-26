@@ -21,6 +21,55 @@ def _sf(v):
     return 0.0 if pd.isna(v) else float(v)
 
 
+def _get_df(session_id, filters_str, thresholds_str):
+    """Получить отфильтрованный DataFrame."""
+    session = get_session(session_id)
+    if not session:
+        return None
+    df = session['df']
+    try:
+        f = json.loads(filters_str)
+    except Exception:
+        f = {}
+    try:
+        thresh = {**DEFAULT_THRESHOLDS, **json.loads(thresholds_str)}
+    except Exception:
+        thresh = DEFAULT_THRESHOLDS
+    hierarchy = f.get('hierarchy', {})
+    extra = {k: v for k, v in f.items() if k != 'hierarchy'}
+    df_f = apply_hierarchy_filters(df, hierarchy)
+    df_f = apply_extra_filters(df_f, extra)
+    agg = compute_aggregates(df_f)
+    df_f, _ = apply_risk_scoring_v2(df_f, agg, thresh)
+    return df_f
+
+
+def _build_orders_list(df_subset):
+    """Стандартный список заказов из подмножества DataFrame."""
+    orders = []
+    for _, row in df_subset.iterrows():
+        order_id = str(row.get('ID', '')) if pd.notna(row.get('ID')) else ''
+        text = str(row.get('Текст', '')) if pd.notna(row.get('Текст')) else ''
+        vid = str(row.get('Вид', '')) if pd.notna(row.get('Вид')) else ''
+        date_val = None
+        for dc in ['Факт_Начало', 'Факт_Конец', 'Начало', 'Конец']:
+            v = row.get(dc, None)
+            if pd.notna(v):
+                date_val = v
+                break
+        date_str = ''
+        if date_val is not None and pd.notna(date_val):
+            date_str = date_val.isoformat()[:10] if hasattr(date_val, 'isoformat') else str(date_val)[:10]
+        fact = _sf(row.get('Fact_N', 0))
+        plan = _sf(row.get('Plan_N', 0))
+        stat = str(row.get('STAT', '')) if pd.notna(row.get('STAT')) else ''
+        orders.append({
+            "id": order_id, "text": text, "vid": vid,
+            "date": date_str, "fact": fact, "plan": plan, "stat": stat,
+        })
+    return orders
+
+
 @router.get("/api/tab/workplaces")
 async def get_workplaces(
     session_id: str = Query(...),
@@ -28,26 +77,9 @@ async def get_workplaces(
     thresholds: str = Query("{}")
 ):
     """Данные для вкладки Рабочие места."""
-    session = get_session(session_id)
-    if not session:
+    df_f = _get_df(session_id, filters, thresholds)
+    if df_f is None:
         return JSONResponse(status_code=404, content={"error": "Сессия не найдена"})
-
-    df = session['df']
-    try:
-        f = json.loads(filters)
-    except Exception:
-        f = {}
-    try:
-        thresh = {**DEFAULT_THRESHOLDS, **json.loads(thresholds)}
-    except Exception:
-        thresh = DEFAULT_THRESHOLDS
-
-    hierarchy = f.get('hierarchy', {})
-    extra = {k: v for k, v in f.items() if k != 'hierarchy'}
-    df_f = apply_hierarchy_filters(df, hierarchy)
-    df_f = apply_extra_filters(df_f, extra)
-    agg = compute_aggregates(df_f)
-    df_f, _ = apply_risk_scoring_v2(df_f, agg, thresh)
 
     if 'РМ' not in df_f.columns:
         return {"rm_data": [], "kpi": {}}
@@ -80,3 +112,26 @@ async def get_workplaces(
             "overrun_count": overrun_rm,
         }
     }
+
+
+@router.get("/api/workplaces/orders")
+async def get_workplaces_orders(
+    session_id: str = Query(...),
+    filters: str = Query("{}"),
+    thresholds: str = Query("{}"),
+    rm: str = Query(...),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+):
+    """Заказы по конкретному РМ для аккордеона, с пагинацией."""
+    df_f = _get_df(session_id, filters, thresholds)
+    if df_f is None:
+        return JSONResponse(status_code=404, content={"error": "Сессия не найдена"})
+    if 'РМ' not in df_f.columns:
+        return {"orders": [], "total": 0}
+    df_group = df_f[df_f['РМ'].astype(str) == str(rm)]
+    orders = _build_orders_list(df_group)
+    orders.sort(key=lambda x: x['date'], reverse=True)
+    total = len(orders)
+    start = (page - 1) * page_size
+    return {"orders": orders[start:start + page_size], "total": total}

@@ -59,6 +59,20 @@ export default function Finance() {
   const [monthlyChartType, setMonthlyChartType] = useState('bar');
   const [paretoChartType, setParetoChartType] = useState('area');
 
+  // Аккордеон ЦЕХ
+  const [cehExpanded, setCehExpanded] = useState(null);
+  const [cehOrders, setCehOrders] = useState([]);
+  const [cehTotal, setCehTotal] = useState(0);
+  const [cehPage, setCehPage] = useState(1);
+  const [cehLoading, setCehLoading] = useState(false);
+
+  // Аккордеон ТМ
+  const [tmExpanded, setTmExpanded] = useState(null);
+  const [tmOrders, setTmOrders] = useState([]);
+  const [tmTotal, setTmTotal] = useState(0);
+  const [tmPage, setTmPage] = useState(1);
+  const [tmLoading, setTmLoading] = useState(false);
+
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
@@ -66,7 +80,44 @@ export default function Finance() {
       .then(setData)
       .catch(() => {})
       .finally(() => setLoading(false));
+    // Сбросить аккордеон при смене фильтров
+    setCehExpanded(null); setCehOrders([]); setCehPage(1);
+    setTmExpanded(null); setTmOrders([]); setTmPage(1);
   }, [sessionId, filters, thresholds]);
+
+  // --- Функции аккордеона ЦЕХ ---
+  const fetchCehOrders = (name, page) => {
+    setCehLoading(true);
+    apiGet('/api/finance/orders', {
+      session_id: sessionId, filters, thresholds,
+      group_by: 'ceh', group_value: name, page, page_size: 20,
+    })
+      .then(res => { setCehOrders(res.orders || []); setCehTotal(res.total || 0); })
+      .catch(() => { setCehOrders([]); setCehTotal(0); })
+      .finally(() => setCehLoading(false));
+  };
+  const toggleCehExpand = (name) => {
+    if (cehExpanded === name) { setCehExpanded(null); setCehOrders([]); setCehTotal(0); setCehPage(1); return; }
+    setCehExpanded(name); setCehPage(1); fetchCehOrders(name, 1);
+  };
+  const handleCehPage = (p) => { setCehPage(p); fetchCehOrders(cehExpanded, p); };
+
+  // --- Функции аккордеона ТМ ---
+  const fetchTmOrders = (name, page) => {
+    setTmLoading(true);
+    apiGet('/api/finance/orders', {
+      session_id: sessionId, filters, thresholds,
+      group_by: 'tm', group_value: name, page, page_size: 20,
+    })
+      .then(res => { setTmOrders(res.orders || []); setTmTotal(res.total || 0); })
+      .catch(() => { setTmOrders([]); setTmTotal(0); })
+      .finally(() => setTmLoading(false));
+  };
+  const toggleTmExpand = (name) => {
+    if (tmExpanded === name) { setTmExpanded(null); setTmOrders([]); setTmTotal(0); setTmPage(1); return; }
+    setTmExpanded(name); setTmPage(1); fetchTmOrders(name, 1);
+  };
+  const handleTmPage = (p) => { setTmPage(p); fetchTmOrders(tmExpanded, p); };
 
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;
@@ -215,7 +266,11 @@ export default function Finance() {
       {ceh_data.length > 0 && (
         <Card title="2. Отклонения по цехам (Факт − План)">
           <ExcelBtn tableData={ceh_data} title="Отклонения_по_цехам" />
-          <HeatmapTable data={ceh_data} />
+          <HeatmapTable data={ceh_data} expandable
+            expandedName={cehExpanded} onToggleExpand={toggleCehExpand}
+            expandedOrders={cehOrders} expandedTotal={cehTotal}
+            expandedLoading={cehLoading} expandedPage={cehPage}
+            onPageChange={handleCehPage} />
         </Card>
       )}
 
@@ -223,7 +278,11 @@ export default function Finance() {
       {tm_data.length > 0 && (
         <Card title="3. Отклонения по ТМ (Факт − План)">
           <ExcelBtn tableData={tm_data} title="Отклонения_по_ТМ" />
-          <HeatmapTable data={tm_data} />
+          <HeatmapTable data={tm_data} expandable
+            expandedName={tmExpanded} onToggleExpand={toggleTmExpand}
+            expandedOrders={tmOrders} expandedTotal={tmTotal}
+            expandedLoading={tmLoading} expandedPage={tmPage}
+            onPageChange={handleTmPage} />
         </Card>
       )}
 

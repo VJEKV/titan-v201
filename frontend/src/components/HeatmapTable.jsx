@@ -1,7 +1,9 @@
+import React from 'react';
 import { C, heatBg } from '../theme/arctic';
 
 /**
- * Heatmap-таблица с RGB-градиентным фоном строк
+ * Heatmap-таблица с RGB-градиентным фоном строк.
+ * Опционально: аккордеон с заказами + пагинация по 20.
  */
 
 function fmtShort(val) {
@@ -14,10 +16,33 @@ function fmtShort(val) {
   return `${sign}${abs.toFixed(0)}`;
 }
 
-export default function HeatmapTable({ data, nameKey = "name" }) {
+const PAGE_BTN = {
+  padding: '4px 12px',
+  background: C.bg,
+  border: `1px solid ${C.border}`,
+  borderRadius: 6,
+  color: C.accent,
+  cursor: 'pointer',
+  fontSize: 11,
+};
+
+export default function HeatmapTable({
+  data,
+  nameKey = "name",
+  expandable = false,
+  expandedName = null,
+  onToggleExpand = null,
+  expandedOrders = [],
+  expandedTotal = 0,
+  expandedLoading = false,
+  expandedPage = 1,
+  onPageChange = null,
+  pageSize = 20,
+}) {
   if (!data || data.length === 0) return <p style={{ color: C.muted }}>Нет данных</p>;
 
   const absMax = Math.max(...data.map(d => Math.abs(d.dev || 0)), 1);
+  const totalPages = Math.ceil(expandedTotal / pageSize);
 
   return (
     <div style={{ overflowX: 'auto', borderRadius: 8, border: `1px solid ${C.border}` }}>
@@ -35,10 +60,20 @@ export default function HeatmapTable({ data, nameKey = "name" }) {
           {data.map((row, i) => {
             const { bg, tc } = heatBg(row.dev || 0, absMax);
             const sign = row.dev > 0 ? "+" : "";
-            return (
+            const isExpanded = expandable && expandedName === row[nameKey];
+
+            const mainRow = (
               <tr key={i} style={{ background: bg, borderBottom: `1px solid ${C.border}33` }}>
-                <td style={{ color: C.text, fontSize: 13, maxWidth: 350, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                    title={row[nameKey]}>
+                <td
+                  style={{
+                    color: C.text, fontSize: 13, maxWidth: 350, overflow: 'hidden',
+                    textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    cursor: expandable ? 'pointer' : 'default',
+                  }}
+                  title={expandable ? `${row[nameKey]} — нажмите для детализации` : row[nameKey]}
+                  onClick={expandable && onToggleExpand ? () => onToggleExpand(row[nameKey]) : undefined}
+                >
+                  {expandable && (isExpanded ? '▼ ' : '▶ ')}
                   {i + 1}. {row[nameKey]}
                 </td>
                 <td style={{ color: '#e0e0e0', textAlign: 'right', fontSize: 13 }}>{fmtShort(row.plan)} ₽</td>
@@ -46,6 +81,87 @@ export default function HeatmapTable({ data, nameKey = "name" }) {
                 <td style={{ color: tc, textAlign: 'right', fontSize: 14, fontWeight: 600 }}>{sign}{fmtShort(row.dev)} ₽</td>
                 <td style={{ color: '#ccc', textAlign: 'center', fontSize: 13 }}>{row.count}</td>
               </tr>
+            );
+
+            if (!expandable) return mainRow;
+
+            return (
+              <React.Fragment key={i}>
+                {mainRow}
+                {isExpanded && (
+                  <tr>
+                    <td colSpan={5} style={{ padding: 0 }}>
+                      <div style={{
+                        background: 'linear-gradient(145deg, #1e293b 0%, #1a2332 100%)',
+                        padding: '12px 16px',
+                        borderLeft: `3px solid ${C.accent}`,
+                        margin: '0 8px 8px 8px',
+                        borderRadius: '0 0 8px 8px',
+                      }}>
+                        {expandedLoading ? (
+                          <p style={{ color: C.muted, fontSize: 12 }}>Загрузка заказов...</p>
+                        ) : expandedOrders.length === 0 ? (
+                          <p style={{ color: C.muted, fontSize: 12 }}>Нет заказов</p>
+                        ) : (
+                          <>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                                  {['Заказ', 'Дата', 'Вид работ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽'].map(h => (
+                                    <th key={h} style={{
+                                      color: C.dim, fontSize: 10, padding: '4px 8px',
+                                      textAlign: h.includes('₽') ? 'right' : 'left', fontWeight: 600,
+                                    }}>{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {expandedOrders.map((ord, j) => (
+                                  <tr key={j} style={{ borderBottom: `1px solid ${C.border}22` }}>
+                                    <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>{ord.id}</td>
+                                    <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date}</td>
+                                    <td style={{ color: C.text, fontSize: 11, padding: '4px 8px' }}>{ord.vid}</td>
+                                    <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px' }}>{ord.stat}</td>
+                                    <td style={{
+                                      color: C.text, fontSize: 11, padding: '4px 8px',
+                                      maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                    }} title={ord.text}>{ord.text}</td>
+                                    <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.plan)}</td>
+                                    <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.fact)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            {expandedTotal > pageSize && (
+                              <div style={{
+                                display: 'flex', justifyContent: 'space-between',
+                                alignItems: 'center', marginTop: 8, paddingTop: 8,
+                                borderTop: `1px solid ${C.border}33`,
+                              }}>
+                                <span style={{ color: C.muted, fontSize: 11 }}>
+                                  {((expandedPage - 1) * pageSize) + 1}–{Math.min(expandedPage * pageSize, expandedTotal)} из {expandedTotal}
+                                </span>
+                                <div style={{ display: 'flex', gap: 4 }}>
+                                  <button
+                                    disabled={expandedPage <= 1}
+                                    onClick={() => onPageChange && onPageChange(expandedPage - 1)}
+                                    style={{ ...PAGE_BTN, opacity: expandedPage <= 1 ? 0.3 : 1 }}
+                                  >← Назад</button>
+                                  <button
+                                    disabled={expandedPage >= totalPages}
+                                    onClick={() => onPageChange && onPageChange(expandedPage + 1)}
+                                    style={{ ...PAGE_BTN, opacity: expandedPage >= totalPages ? 0.3 : 1 }}
+                                  >Вперёд →</button>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             );
           })}
         </tbody>

@@ -47,12 +47,36 @@ export default function Planners() {
   // Типы графиков
   const [barType, setBarType] = useState('hbar');
 
+  // Аккордеон INGRP
+  const [ingrpExpanded, setIngrpExpanded] = useState(null);
+  const [ingrpOrders, setIngrpOrders] = useState([]);
+  const [ingrpTotal, setIngrpTotal] = useState(0);
+  const [ingrpPage, setIngrpPage] = useState(1);
+  const [ingrpLoading, setIngrpLoading] = useState(false);
+
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
     apiGet('/api/tab/planners', { session_id: sessionId, filters, thresholds })
       .then(setData).catch(() => {}).finally(() => setLoading(false));
+    setIngrpExpanded(null); setIngrpOrders([]); setIngrpPage(1);
   }, [sessionId, filters, thresholds]);
+
+  const fetchIngrpOrders = (name, page) => {
+    setIngrpLoading(true);
+    apiGet('/api/planners/orders', {
+      session_id: sessionId, filters, thresholds,
+      ingrp: name, page, page_size: 20,
+    })
+      .then(res => { setIngrpOrders(res.orders || []); setIngrpTotal(res.total || 0); })
+      .catch(() => { setIngrpOrders([]); setIngrpTotal(0); })
+      .finally(() => setIngrpLoading(false));
+  };
+  const toggleIngrpExpand = (name) => {
+    if (ingrpExpanded === name) { setIngrpExpanded(null); setIngrpOrders([]); setIngrpTotal(0); setIngrpPage(1); return; }
+    setIngrpExpanded(name); setIngrpPage(1); fetchIngrpOrders(name, 1);
+  };
+  const handleIngrpPage = (p) => { setIngrpPage(p); fetchIngrpOrders(ingrpExpanded, p); };
 
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;
@@ -138,7 +162,11 @@ export default function Planners() {
 
       {/* Группы */}
       <Card title="1. Группы плановиков (INGRP)">
-        <HeatmapTable data={ingrp_data} />
+        <HeatmapTable data={ingrp_data} expandable
+          expandedName={ingrpExpanded} onToggleExpand={toggleIngrpExpand}
+          expandedOrders={ingrpOrders} expandedTotal={ingrpTotal}
+          expandedLoading={ingrpLoading} expandedPage={ingrpPage}
+          onPageChange={handleIngrpPage} />
       </Card>
 
 {/* Сводная — бублик */}
