@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { C, heatBg } from '../theme/arctic';
 
 /**
  * Heatmap-таблица с RGB-градиентным фоном строк.
- * Опционально: аккордеон с заказами + пагинация по 20.
+ * Опционально: сортировка по столбцам, аккордеон с заказами + пагинация.
  */
 
 function fmtShort(val) {
@@ -26,6 +26,14 @@ const PAGE_BTN = {
   fontSize: 11,
 };
 
+const COLUMNS = [
+  { key: 'name', label: 'Наименование', align: 'left' },
+  { key: 'plan', label: 'План', align: 'right' },
+  { key: 'fact', label: 'Факт', align: 'right' },
+  { key: 'dev',  label: 'Отклонение', align: 'right' },
+  { key: 'count', label: 'Заказов', align: 'center' },
+];
+
 export default function HeatmapTable({
   data,
   nameKey = "name",
@@ -39,25 +47,66 @@ export default function HeatmapTable({
   onPageChange = null,
   pageSize = 20,
 }) {
+  const [sortCol, setSortCol] = useState(null);
+  const [sortDir, setSortDir] = useState('desc');
+
   if (!data || data.length === 0) return <p style={{ color: C.muted }}>Нет данных</p>;
+
+  const handleSort = (colKey) => {
+    if (sortCol === colKey) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortCol(colKey);
+      setSortDir(colKey === 'name' ? 'asc' : 'desc');
+    }
+  };
+
+  const sortedData = useMemo(() => {
+    if (!sortCol) return data;
+    const sorted = [...data].sort((a, b) => {
+      const ak = sortCol === 'name' ? (a[nameKey] || '') : (a[sortCol] || 0);
+      const bk = sortCol === 'name' ? (b[nameKey] || '') : (b[sortCol] || 0);
+      if (sortCol === 'name') {
+        return sortDir === 'asc' ? String(ak).localeCompare(String(bk), 'ru') : String(bk).localeCompare(String(ak), 'ru');
+      }
+      return sortDir === 'asc' ? ak - bk : bk - ak;
+    });
+    return sorted;
+  }, [data, sortCol, sortDir, nameKey]);
 
   const absMax = Math.max(...data.map(d => Math.abs(d.dev || 0)), 1);
   const totalPages = Math.ceil(expandedTotal / pageSize);
+
+  const sortArrow = (colKey) => {
+    if (sortCol !== colKey) return '';
+    return sortDir === 'asc' ? ' ▲' : ' ▼';
+  };
 
   return (
     <div style={{ overflowX: 'auto', borderRadius: 8, border: `1px solid ${C.border}` }}>
       <table>
         <thead>
           <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
-            <th style={{ color: C.muted, fontSize: 12 }}>Наименование</th>
-            <th style={{ color: C.muted, fontSize: 12, textAlign: 'right' }}>План</th>
-            <th style={{ color: C.muted, fontSize: 12, textAlign: 'right' }}>Факт</th>
-            <th style={{ color: C.muted, fontSize: 12, textAlign: 'right' }}>Отклонение</th>
-            <th style={{ color: C.muted, fontSize: 12, textAlign: 'center' }}>Заказов</th>
+            {COLUMNS.map(col => (
+              <th key={col.key}
+                onClick={expandable ? () => handleSort(col.key) : undefined}
+                style={{
+                  color: sortCol === col.key ? C.accent : C.muted,
+                  fontSize: 12,
+                  textAlign: col.align,
+                  cursor: expandable ? 'pointer' : 'default',
+                  userSelect: 'none',
+                  whiteSpace: 'nowrap',
+                }}
+                title={expandable ? `Сортировать по: ${col.label}` : undefined}
+              >
+                {col.label}{expandable && sortArrow(col.key)}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {data.map((row, i) => {
+          {sortedData.map((row, i) => {
             const { bg, tc } = heatBg(row.dev || 0, absMax);
             const sign = row.dev > 0 ? "+" : "";
             const isExpanded = expandable && expandedName === row[nameKey];
