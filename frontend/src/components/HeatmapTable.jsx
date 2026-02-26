@@ -34,6 +34,16 @@ const COLUMNS = [
   { key: 'count', label: 'Заказов', align: 'center' },
 ];
 
+const INNER_COLUMNS = [
+  { key: 'id',   label: 'Заказ',      align: 'left',  type: 'str' },
+  { key: 'date', label: 'Дата',       align: 'left',  type: 'str' },
+  { key: 'vid',  label: 'Вид работ',  align: 'left',  type: 'str' },
+  { key: 'stat', label: 'Статус',     align: 'left',  type: 'str' },
+  { key: 'text', label: 'Текст работ',align: 'left',  type: 'str' },
+  { key: 'plan', label: 'План ₽',     align: 'right', type: 'num' },
+  { key: 'fact', label: 'Факт ₽',     align: 'right', type: 'num' },
+];
+
 export default function HeatmapTable({
   data,
   nameKey = "name",
@@ -49,6 +59,9 @@ export default function HeatmapTable({
 }) {
   const [sortCol, setSortCol] = useState(null);
   const [sortDir, setSortDir] = useState('desc');
+  // Сортировка внутри раскрытого списка заказов
+  const [innerSortCol, setInnerSortCol] = useState(null);
+  const [innerSortDir, setInnerSortDir] = useState('desc');
 
   if (!data || data.length === 0) return <p style={{ color: C.muted }}>Нет данных</p>;
 
@@ -73,6 +86,27 @@ export default function HeatmapTable({
     });
     return sorted;
   }, [data, sortCol, sortDir, nameKey]);
+
+  const handleInnerSort = (colKey) => {
+    if (innerSortCol === colKey) {
+      setInnerSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setInnerSortCol(colKey);
+      const col = INNER_COLUMNS.find(c => c.key === colKey);
+      setInnerSortDir(col && col.type === 'num' ? 'desc' : 'asc');
+    }
+  };
+
+  const sortedOrders = useMemo(() => {
+    if (!innerSortCol || !expandedOrders.length) return expandedOrders;
+    const col = INNER_COLUMNS.find(c => c.key === innerSortCol);
+    return [...expandedOrders].sort((a, b) => {
+      const av = a[innerSortCol] || (col?.type === 'num' ? 0 : '');
+      const bv = b[innerSortCol] || (col?.type === 'num' ? 0 : '');
+      if (col?.type === 'num') return innerSortDir === 'asc' ? av - bv : bv - av;
+      return innerSortDir === 'asc' ? String(av).localeCompare(String(bv), 'ru') : String(bv).localeCompare(String(av), 'ru');
+    });
+  }, [expandedOrders, innerSortCol, innerSortDir]);
 
   const absMax = Math.max(...data.map(d => Math.abs(d.dev || 0)), 1);
   const totalPages = Math.ceil(expandedTotal / pageSize);
@@ -156,16 +190,24 @@ export default function HeatmapTable({
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                               <thead>
                                 <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                  {['Заказ', 'Дата', 'Вид работ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽'].map(h => (
-                                    <th key={h} style={{
-                                      color: C.dim, fontSize: 10, padding: '4px 8px',
-                                      textAlign: h.includes('₽') ? 'right' : 'left', fontWeight: 600,
-                                    }}>{h}</th>
+                                  {INNER_COLUMNS.map(col => (
+                                    <th key={col.key}
+                                      onClick={() => handleInnerSort(col.key)}
+                                      style={{
+                                        color: innerSortCol === col.key ? C.accent : C.dim,
+                                        fontSize: 10, padding: '4px 8px',
+                                        textAlign: col.align, fontWeight: 600,
+                                        cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
+                                      }}
+                                      title={`Сортировать по: ${col.label}`}
+                                    >
+                                      {col.label}{innerSortCol === col.key ? (innerSortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                                    </th>
                                   ))}
                                 </tr>
                               </thead>
                               <tbody>
-                                {expandedOrders.map((ord, j) => (
+                                {sortedOrders.map((ord, j) => (
                                   <tr key={j} style={{ borderBottom: `1px solid ${C.border}22` }}>
                                     <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>{ord.id}</td>
                                     <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date}</td>
