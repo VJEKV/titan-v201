@@ -55,6 +55,7 @@ export default function HeatmapTable({
   expandedLoading = false,
   expandedPage = 1,
   onPageChange = null,
+  onExportExcel = null,
   pageSize = 20,
 }) {
   const [sortCol, setSortCol] = useState(null);
@@ -187,6 +188,15 @@ export default function HeatmapTable({
                           <p style={{ color: C.muted, fontSize: 12 }}>Нет заказов</p>
                         ) : (
                           <>
+                            {onExportExcel && (
+                              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+                                <button
+                                  onClick={() => onExportExcel(row[nameKey])}
+                                  style={{ ...PAGE_BTN, fontSize: 10 }}
+                                  title="Выгрузить все заказы в Excel"
+                                >Excel</button>
+                              </div>
+                            )}
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                               <thead>
                                 <tr style={{ borderBottom: `1px solid ${C.border}` }}>

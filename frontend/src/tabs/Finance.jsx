@@ -119,6 +119,17 @@ export default function Finance() {
   };
   const handleTmPage = (p) => { setTmPage(p); fetchTmOrders(tmExpanded, p); };
 
+  const exportCehExcel = (name) => {
+    apiDownload('/api/export/orders_excel', {
+      session_id: sessionId, filters, thresholds, group_by: 'ceh', group_value: name,
+    }).catch(() => alert('Ошибка при выгрузке Excel'));
+  };
+  const exportTmExcel = (name) => {
+    apiDownload('/api/export/orders_excel', {
+      session_id: sessionId, filters, thresholds, group_by: 'tm', group_value: name,
+    }).catch(() => alert('Ошибка при выгрузке Excel'));
+  };
+
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;
 
@@ -270,7 +281,7 @@ export default function Finance() {
             expandedName={cehExpanded} onToggleExpand={toggleCehExpand}
             expandedOrders={cehOrders} expandedTotal={cehTotal}
             expandedLoading={cehLoading} expandedPage={cehPage}
-            onPageChange={handleCehPage} />
+            onPageChange={handleCehPage} onExportExcel={exportCehExcel} />
         </Card>
       )}
 
@@ -282,7 +293,7 @@ export default function Finance() {
             expandedName={tmExpanded} onToggleExpand={toggleTmExpand}
             expandedOrders={tmOrders} expandedTotal={tmTotal}
             expandedLoading={tmLoading} expandedPage={tmPage}
-            onPageChange={handleTmPage} />
+            onPageChange={handleTmPage} onExportExcel={exportTmExcel} />
         </Card>
       )}
 

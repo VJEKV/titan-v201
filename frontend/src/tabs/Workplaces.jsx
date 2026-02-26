@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 import { C } from '../theme/arctic';
 import { useFilters } from '../hooks/useFilters';
-import { apiGet } from '../api/client';
+import { apiGet, apiDownload } from '../api/client';
 import KpiCard from '../components/KpiCard';
 import KpiRow from '../components/KpiRow';
 import SectionTitle from '../components/SectionTitle';
@@ -64,6 +64,12 @@ export default function Workplaces() {
     setRmExpanded(name); setRmPage(1); fetchRmOrders(name, 1);
   };
   const handleRmPage = (p) => { setRmPage(p); fetchRmOrders(rmExpanded, p); };
+
+  const exportRmExcel = (name) => {
+    apiDownload('/api/export/orders_excel', {
+      session_id: sessionId, filters, thresholds, group_by: 'rm', group_value: name,
+    }).catch(() => alert('Ошибка при выгрузке Excel'));
+  };
 
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;
@@ -157,7 +163,7 @@ export default function Workplaces() {
             expandedName={rmExpanded} onToggleExpand={toggleRmExpand}
             expandedOrders={rmOrders} expandedTotal={rmTotal}
             expandedLoading={rmLoading} expandedPage={rmPage}
-            onPageChange={handleRmPage} />
+            onPageChange={handleRmPage} onExportExcel={exportRmExcel} />
         </Card>
       )}
 
@@ -168,7 +174,7 @@ export default function Workplaces() {
             expandedName={rmExpanded} onToggleExpand={toggleRmExpand}
             expandedOrders={rmOrders} expandedTotal={rmTotal}
             expandedLoading={rmLoading} expandedPage={rmPage}
-            onPageChange={handleRmPage} />
+            onPageChange={handleRmPage} onExportExcel={exportRmExcel} />
         </Card>
       )}
     </div>

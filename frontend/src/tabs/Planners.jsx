@@ -102,6 +102,17 @@ export default function Planners() {
   };
   const handleUserPage = (p) => { setUserPage(p); fetchUserOrders(userExpanded, p); };
 
+  const exportIngrpExcel = (name) => {
+    apiDownload('/api/export/orders_excel', {
+      session_id: sessionId, filters, thresholds, group_by: 'ingrp', group_value: name,
+    }).catch(() => alert('Ошибка при выгрузке Excel'));
+  };
+  const exportUserExcel = (name) => {
+    apiDownload('/api/export/orders_excel', {
+      session_id: sessionId, filters, thresholds, group_by: 'user', group_value: name,
+    }).catch(() => alert('Ошибка при выгрузке Excel'));
+  };
+
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;
 
@@ -177,7 +188,7 @@ export default function Planners() {
           expandedName={ingrpExpanded} onToggleExpand={toggleIngrpExpand}
           expandedOrders={ingrpOrders} expandedTotal={ingrpTotal}
           expandedLoading={ingrpLoading} expandedPage={ingrpPage}
-          onPageChange={handleIngrpPage} />
+          onPageChange={handleIngrpPage} onExportExcel={exportIngrpExcel} />
       </Card>
 
 {/* Сводная — бублик */}
@@ -211,7 +222,7 @@ export default function Planners() {
             expandedName={userExpanded} onToggleExpand={toggleUserExpand}
             expandedOrders={userOrders} expandedTotal={userTotal}
             expandedLoading={userLoading} expandedPage={userPage}
-            onPageChange={handleUserPage} />
+            onPageChange={handleUserPage} onExportExcel={exportUserExcel} />
         </Card>
       )}
 
