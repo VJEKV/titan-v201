@@ -583,6 +583,7 @@ export default function Equipment() {
           { key: 'eo', label: 'Код ЕО' },
           { key: 'equipment_name', label: 'Название ЕО' },
           { key: 'n_orders', label: 'Кол-во заказов' },
+          { key: 'total_fact', label: 'Сумма факт ₽' },
           { key: 'avg_interval', label: 'Средний интервал (дни)' },
           { key: 'min_interval', label: 'Мин интервал' },
           { key: 'max_interval', label: 'Макс интервал' },
@@ -594,7 +595,7 @@ export default function Equipment() {
           return dir * ((av || 0) - (bv || 0));
         });
         return (
-        <Card title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>7. Частота обслуживания — средний интервал между заказами (дни) <ChartSettings chartId="eq-freq" chartTypes={[{value:'hbar',label:'Горизонт.'},{value:'vbar',label:'Вертикал.'},{value:'line',label:'Линия'}]} currentChartType={freqChartType} onChartTypeChange={setFreqChartType} /></span>}>
+        <Card title="7. Частота обслуживания — средний интервал между заказами (дни)">
           <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
             TOP-{frequency.length} ЕО с 2+ заказами. Нажмите на заголовок столбца для сортировки, на название ЕО — для детализации заказов.
           </div>
@@ -631,6 +632,7 @@ export default function Equipment() {
                           {isFreqExpanded ? '▼ ' : '▶ '}{f.equipment_name || '—'}
                         </td>
                         <td style={{ color: C.text, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.n_orders}</td>
+                        <td style={{ color: C.orange, fontSize: 12, textAlign: 'right', padding: '6px 10px', fontWeight: 600 }}>{fmtShort(f.total_fact)} ₽</td>
                         <td style={{ color: C.warning, fontSize: 12, textAlign: 'center', padding: '6px 10px', fontWeight: 600 }}>{f.avg_interval} дн.</td>
                         <td style={{ color: C.success, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.min_interval ?? '—'} дн.</td>
                         <td style={{ color: C.danger, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.max_interval ?? '—'} дн.</td>
@@ -682,7 +684,6 @@ export default function Equipment() {
               </tbody>
             </table>
           </div>
-          {renderFreqChart()}
         </Card>
         );
       })()}

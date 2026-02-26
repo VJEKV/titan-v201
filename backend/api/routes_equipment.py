@@ -266,6 +266,12 @@ async def get_equipment(
         eo_multi = (eo_counts >= 2).sum()
         print(f"[FREQ DEBUG] rows with valid date: {len(df_freq)}, unique EO: {len(eo_counts)}, EO with 2+ orders: {eo_multi}")
 
+        # Сумма факт по каждому ЕО — для отображения в таблице частоты
+        eo_fact_map = {}
+        if 'Fact_N' in df_with_eo.columns:
+            eo_fact_agg = df_with_eo.groupby(eo_col)['Fact_N'].sum()
+            eo_fact_map = {str(k): _sf(v) for k, v in eo_fact_agg.items()}
+
         # Средний интервал между заказами на ЕО
         intervals = []
         for eo_id, grp in df_freq.groupby(eo_col):
@@ -291,6 +297,7 @@ async def get_equipment(
                     "avg_interval": round(avg_interval, 0),
                     "min_interval": round(min_interval, 0),
                     "max_interval": round(max_interval, 0),
+                    "total_fact": eo_fact_map.get(str(eo_id), 0),
                 })
         intervals.sort(key=lambda x: x['avg_interval'])
         frequency = intervals[:100]
