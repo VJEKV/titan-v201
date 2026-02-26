@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 import { C } from '../theme/arctic';
 import { useFilters } from '../hooks/useFilters';
-import { apiGet } from '../api/client';
+import { apiGet, apiDownload } from '../api/client';
 import KpiCard from '../components/KpiCard';
 import KpiRow from '../components/KpiRow';
 import SectionTitle from '../components/SectionTitle';
@@ -54,12 +54,20 @@ export default function Planners() {
   const [ingrpPage, setIngrpPage] = useState(1);
   const [ingrpLoading, setIngrpLoading] = useState(false);
 
+  // Аккордеон USER
+  const [userExpanded, setUserExpanded] = useState(null);
+  const [userOrders, setUserOrders] = useState([]);
+  const [userTotal, setUserTotal] = useState(0);
+  const [userPage, setUserPage] = useState(1);
+  const [userLoading, setUserLoading] = useState(false);
+
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
     apiGet('/api/tab/planners', { session_id: sessionId, filters, thresholds })
       .then(setData).catch(() => {}).finally(() => setLoading(false));
     setIngrpExpanded(null); setIngrpOrders([]); setIngrpPage(1);
+    setUserExpanded(null); setUserOrders([]); setUserPage(1);
   }, [sessionId, filters, thresholds]);
 
   const fetchIngrpOrders = (name, page) => {
@@ -78,6 +86,22 @@ export default function Planners() {
   };
   const handleIngrpPage = (p) => { setIngrpPage(p); fetchIngrpOrders(ingrpExpanded, p); };
 
+  const fetchUserOrders = (name, page) => {
+    setUserLoading(true);
+    apiGet('/api/planners/user_orders', {
+      session_id: sessionId, filters, thresholds,
+      user: name, page, page_size: 20,
+    })
+      .then(res => { setUserOrders(res.orders || []); setUserTotal(res.total || 0); })
+      .catch(() => { setUserOrders([]); setUserTotal(0); })
+      .finally(() => setUserLoading(false));
+  };
+  const toggleUserExpand = (name) => {
+    if (userExpanded === name) { setUserExpanded(null); setUserOrders([]); setUserTotal(0); setUserPage(1); return; }
+    setUserExpanded(name); setUserPage(1); fetchUserOrders(name, 1);
+  };
+  const handleUserPage = (p) => { setUserPage(p); fetchUserOrders(userExpanded, p); };
+
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;
 
@@ -86,27 +110,11 @@ export default function Planners() {
   const fsz = csDonut.fontSizes;
   const fontFamily = csDonut.font;
 
-  /** Экспорт скоринга в Excel */
+  /** Экспорт скоринга в Excel (через бэкенд) */
   const exportScoringExcel = () => {
-    const header = ['#', 'Пользователь', 'Заказов', 'Score %', ...Object.keys(FIELD_SAP_MAP)];
-    const rows = (user_scoring || []).map((u, i) => {
-      const fields = Object.keys(FIELD_SAP_MAP).map(f => {
-        const info = u.empty_fields[f];
-        return info ? `${info.count} (${info.pct}%)` : '—';
-      });
-      return [i + 1, u.user, u.total_orders, `${u.score}%`, ...fields];
+    apiDownload('/api/planners/scoring_excel', {
+      session_id: sessionId, filters, thresholds,
     });
-    const legendHeader = ['Плашка', 'Поле SAP', 'Описание'];
-    const legendRows = Object.entries(FIELD_SAP_MAP).map(([name, info]) => [name, info.sap, info.tip]);
-    const dataSheet = [header, ...rows].map(r => r.join('\t')).join('\n');
-    const legendSheet = [legendHeader, ...legendRows].map(r => r.join('\t')).join('\n');
-    const csv = `СКОРИНГ ПОЛЬЗОВАТЕЛЕЙ\n${dataSheet}\n\n\nЛЕГЕНДА (поля SAP)\n${legendSheet}`;
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `Скоринг_плановиков_${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
   };
 
   /** Данные для DonutWithLegend */
@@ -196,7 +204,11 @@ export default function Planners() {
       {/* Авторы */}
       {users_data.length > 0 && (
         <Card title="2. Авторы заказов (USER) — TOP-20">
-          <HeatmapTable data={users_data} />
+          <HeatmapTable data={users_data} expandable
+            expandedName={userExpanded} onToggleExpand={toggleUserExpand}
+            expandedOrders={userOrders} expandedTotal={userTotal}
+            expandedLoading={userLoading} expandedPage={userPage}
+            onPageChange={handleUserPage} />
         </Card>
       )}
 

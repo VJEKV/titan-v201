@@ -5,8 +5,10 @@ api/routes_planners.py — GET /api/tab/planners
 
 import json
 import pandas as pd
+from io import BytesIO
 from fastapi import APIRouter, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
+from datetime import datetime
 
 from state.session import get_session
 from utils.filters import apply_hierarchy_filters, apply_extra_filters
@@ -224,3 +226,126 @@ async def get_planners_orders(
     total = len(orders)
     start = (page - 1) * page_size
     return {"orders": orders[start:start + page_size], "total": total}
+
+
+@router.get("/api/planners/user_orders")
+async def get_planners_user_orders(
+    session_id: str = Query(...),
+    filters: str = Query("{}"),
+    thresholds: str = Query("{}"),
+    user: str = Query(...),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+):
+    """Заказы по конкретному автору (USER) для аккордеона, с пагинацией."""
+    df_f = _get_df(session_id, filters, thresholds)
+    if df_f is None:
+        return JSONResponse(status_code=404, content={"error": "Сессия не найдена"})
+    if 'USER' not in df_f.columns:
+        return {"orders": [], "total": 0}
+    df_group = df_f[df_f['USER'].astype(str) == str(user)]
+    orders = _build_orders_list(df_group)
+    orders.sort(key=lambda x: x['date'], reverse=True)
+    total = len(orders)
+    start = (page - 1) * page_size
+    return {"orders": orders[start:start + page_size], "total": total}
+
+
+@router.get("/api/planners/scoring_excel")
+async def export_scoring_excel(
+    session_id: str = Query(...),
+    filters: str = Query("{}"),
+    thresholds: str = Query("{}"),
+):
+    """Экспорт скоринга пользователей в Excel с человекочитаемыми названиями столбцов."""
+    df_f = _get_df(session_id, filters, thresholds)
+    if df_f is None:
+        return JSONResponse(status_code=404, content={"error": "Сессия не найдена"})
+
+    check_fields = {
+        'Plan_N': 'План. стоимость',
+        'Начало': 'Дата начала',
+        'Конец': 'Дата окончания',
+        'ТМ': 'Техническое место',
+        'ЕО': 'Оборудование',
+        'ABC': 'Код ABC',
+        'Вид': 'Вид заказа',
+        'ДОГОВОР': 'Номер договора',
+    }
+
+    if 'USER' not in df_f.columns:
+        return JSONResponse(status_code=400, content={"error": "Нет данных по пользователям"})
+
+    # Собираем строки: каждый заказ с автором и нарушениями
+    rows = []
+    for _, row in df_f.iterrows():
+        user = str(row.get('USER', '')) if pd.notna(row.get('USER')) else ''
+        order_id = str(row.get('ID', '')) if pd.notna(row.get('ID')) else ''
+        text = str(row.get('Текст', '')) if pd.notna(row.get('Текст')) else ''
+        vid = str(row.get('Вид', '')) if pd.notna(row.get('Вид')) else ''
+        stat = str(row.get('STAT', '')) if pd.notna(row.get('STAT')) else ''
+        ingrp = str(row.get('INGRP', '')) if pd.notna(row.get('INGRP')) else ''
+        plan = _sf(row.get('Plan_N', 0))
+        fact = _sf(row.get('Fact_N', 0))
+
+        # Определяем незаполненные поля
+        empty_list = []
+        for field_code, field_name in check_fields.items():
+            if field_code not in df_f.columns:
+                continue
+            val = row.get(field_code)
+            is_empty = False
+            if field_code == 'Plan_N':
+                is_empty = pd.isna(val) or float(val if pd.notna(val) else 0) == 0
+            elif field_code in ('Начало', 'Конец'):
+                is_empty = pd.isna(val)
+            else:
+                is_empty = str(val).strip() in ('Н/Д', 'н/д', 'Не присвоено', 'nan',
+                                                  'NaN', 'None', 'none', '', ' ', '0', 'Пусто')
+            if is_empty:
+                empty_list.append(field_name)
+
+        if not empty_list:
+            continue  # Только заказы с нарушениями
+
+        date_str = ''
+        for dc in ['Факт_Начало', 'Факт_Конец', 'Начало', 'Конец']:
+            v = row.get(dc, None)
+            if pd.notna(v):
+                date_str = v.isoformat()[:10] if hasattr(v, 'isoformat') else str(v)[:10]
+                break
+
+        rows.append({
+            'Автор (USER)': user,
+            'Группа плановиков (INGRP)': ingrp,
+            'Номер заказа': order_id,
+            'Дата': date_str,
+            'Вид работ': vid,
+            'Статус': stat,
+            'Текст работ': text,
+            'План ₽': plan,
+            'Факт ₽': fact,
+            'Незаполненные поля': '; '.join(empty_list),
+        })
+
+    # Сортировка: по автору, затем по кол-ву нарушений (desc)
+    rows.sort(key=lambda r: (r['Автор (USER)'], -len(r['Незаполненные поля'].split('; '))))
+
+    df_out = pd.DataFrame(rows)
+
+    output = BytesIO()
+    try:
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df_out.to_excel(writer, index=False, sheet_name='Скоринг')
+    except ModuleNotFoundError:
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df_out.to_excel(writer, index=False, sheet_name='Скоринг')
+    output.seek(0)
+
+    filename = f"Скоринг_плановиков_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )

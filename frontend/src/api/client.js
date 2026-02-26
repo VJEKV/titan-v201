@@ -48,9 +48,12 @@ export async function apiDownload(endpoint, params = {}) {
   if (!res.ok) throw new Error('Ошибка скачивания');
 
   const blob = await res.blob();
+  const cd = res.headers.get('Content-Disposition') || '';
+  const match = cd.match(/filename="?([^";\n]+)"?/);
+  const fname = match ? decodeURIComponent(match[1]) : `titan_export_${new Date().toISOString().slice(0,10)}.xlsx`;
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `titan_export_${new Date().toISOString().slice(0,10)}.xlsx`;
+  a.download = fname;
   a.click();
   URL.revokeObjectURL(a.href);
 }
