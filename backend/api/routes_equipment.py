@@ -236,21 +236,49 @@ async def get_equipment(
 
     # === 6. Частота обслуживания ===
     frequency = []
-    if date_col and len(df_with_eo) > 0:
-        freq_cols = [eo_col, date_col]
+    # Пробуем все возможные колонки дат для частоты
+    freq_date_col = None
+    for col_candidate in ['Начало', 'Конец', 'Факт_Начало', 'Факт_Конец']:
+        if col_candidate in df_with_eo.columns:
+            # Пробуем конвертировать в datetime если ещё не datetime
+            test_series = pd.to_datetime(df_with_eo[col_candidate], errors='coerce', dayfirst=True)
+            non_null = test_series.notna().sum()
+            if non_null > 0:
+                freq_date_col = col_candidate
+                break
+
+    print(f"[FREQ DEBUG] date_col={date_col}, freq_date_col={freq_date_col}, df_with_eo len={len(df_with_eo)}")
+    if freq_date_col:
+        print(f"[FREQ DEBUG] dtype of {freq_date_col}: {df_with_eo[freq_date_col].dtype}")
+
+    if freq_date_col and len(df_with_eo) > 0:
+        freq_cols = [eo_col, freq_date_col]
         if eo_name_col and eo_name_col in df_with_eo.columns and eo_name_col != eo_col:
             freq_cols.append(eo_name_col)
-        df_freq = df_with_eo[freq_cols].dropna(subset=[date_col]).copy()
-        df_freq = df_freq.sort_values([eo_col, date_col])
+        df_freq = df_with_eo[freq_cols].copy()
+        # Принудительная конвертация дат
+        df_freq['_freq_date'] = pd.to_datetime(df_freq[freq_date_col], errors='coerce', dayfirst=True)
+        df_freq = df_freq.dropna(subset=['_freq_date'])
+        df_freq = df_freq.sort_values([eo_col, '_freq_date'])
+
+        # Диагностика
+        eo_counts = df_freq.groupby(eo_col).size()
+        eo_multi = (eo_counts >= 2).sum()
+        print(f"[FREQ DEBUG] rows with valid date: {len(df_freq)}, unique EO: {len(eo_counts)}, EO with 2+ orders: {eo_multi}")
+
         # Средний интервал между заказами на ЕО
         intervals = []
         for eo_id, grp in df_freq.groupby(eo_col):
             if len(grp) < 2:
                 continue
-            dates = grp[date_col].sort_values()
+            dates = grp['_freq_date'].sort_values()
             diffs = dates.diff().dt.days.dropna()
+            # Фильтруем нулевые и отрицательные интервалы
+            diffs = diffs[diffs > 0]
             if len(diffs) > 0:
                 avg_interval = diffs.mean()
+                min_interval = diffs.min()
+                max_interval = diffs.max()
                 eo_name = ''
                 if eo_name_col and eo_name_col in grp.columns and eo_name_col != eo_col:
                     eo_name = str(grp[eo_name_col].iloc[0])
@@ -261,9 +289,12 @@ async def get_equipment(
                     "equipment_name": eo_name,
                     "n_orders": len(grp),
                     "avg_interval": round(avg_interval, 0),
+                    "min_interval": round(min_interval, 0),
+                    "max_interval": round(max_interval, 0),
                 })
         intervals.sort(key=lambda x: x['avg_interval'])
         frequency = intervals[:30]
+        print(f"[FREQ DEBUG] frequency result count: {len(frequency)}")
 
     # === 7. ABC-распределение ===
     abc_data = []
@@ -331,6 +362,47 @@ async def get_equipment(
         "heatmap_eo_stats": heatmap_eo_stats,
         "frequency": frequency,
     }
+
+
+@router.get("/api/equipment/orders")
+async def get_equipment_orders(
+    session_id: str = Query(...),
+    filters: str = Query("{}"),
+    thresholds: str = Query("{}"),
+    eo_code: str = Query(...),
+):
+    """Детализация заказов по конкретному ЕО для раскрывающегося списка TOP-50."""
+    df_f = _get_df(session_id, filters, thresholds)
+    if df_f is None:
+        return JSONResponse(status_code=404, content={"error": "Сессия не найдена"})
+
+    eo_col = 'EQUNR_Код' if 'EQUNR_Код' in df_f.columns else 'ЕО'
+    df_eo = df_f[df_f[eo_col].astype(str) == str(eo_code)]
+
+    orders = []
+    for _, row in df_eo.iterrows():
+        order_id = str(row.get('ID', '')) if pd.notna(row.get('ID')) else ''
+        text = str(row.get('Текст', '')) if pd.notna(row.get('Текст')) else ''
+        vid = str(row.get('Вид', '')) if pd.notna(row.get('Вид')) else ''
+        date_val = row.get('Начало', None)
+        date_str = ''
+        if pd.notna(date_val):
+            date_str = date_val.isoformat()[:10] if hasattr(date_val, 'isoformat') else str(date_val)[:10]
+        fact = _sf(row.get('Fact_N', 0))
+        plan = _sf(row.get('Plan_N', 0))
+        stat = str(row.get('STAT', '')) if pd.notna(row.get('STAT')) else ''
+        orders.append({
+            "id": order_id,
+            "text": text,
+            "vid": vid,
+            "date": date_str,
+            "fact": fact,
+            "plan": plan,
+            "stat": stat,
+        })
+    # Сортируем по дате (свежие сверху)
+    orders.sort(key=lambda x: x['date'], reverse=True)
+    return {"orders": orders}
 
 
 @router.get("/api/export/equipment-class-excel")

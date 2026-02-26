@@ -21,6 +21,44 @@ def _sf(v):
     return 0.0 if pd.isna(v) else float(v)
 
 
+@router.get("/api/equipment/search")
+async def search_equipment(
+    session_id: str = Query(...),
+    q: str = Query("", min_length=0),
+):
+    """Поиск ЕО по названию и коду (contains, case-insensitive)."""
+    session = get_session(session_id)
+    if not session:
+        return JSONResponse(status_code=404, content={"error": "Сессия не найдена"})
+    df = session['df']
+    eo_col = 'EQUNR_Код' if 'EQUNR_Код' in df.columns else None
+    eo_name_col = 'ЕО' if 'ЕО' in df.columns else None
+    if not eo_col and not eo_name_col:
+        return {"results": []}
+    # Уникальные ЕО
+    cols = [c for c in [eo_col, eo_name_col] if c]
+    df_eo = df[cols].drop_duplicates()
+    # Фильтрация пустых
+    if eo_col:
+        df_eo = df_eo[~is_empty_eo_mask(df_eo[eo_col])]
+    query = q.strip().lower()
+    if query:
+        mask = pd.Series(False, index=df_eo.index)
+        if eo_col:
+            mask |= df_eo[eo_col].astype(str).str.lower().str.contains(query, na=False)
+        if eo_name_col:
+            mask |= df_eo[eo_name_col].astype(str).str.lower().str.contains(query, na=False)
+        df_eo = df_eo[mask]
+    results = []
+    for _, row in df_eo.head(50).iterrows():
+        code = str(row[eo_col]) if eo_col else ''
+        name = str(row[eo_name_col]) if eo_name_col else ''
+        if name in ('nan', 'None', 'Н/Д', ''):
+            name = ''
+        results.append({"code": code, "name": name})
+    return {"results": results}
+
+
 @router.get("/api/tab/orders")
 async def get_orders(
     session_id: str = Query(...),
@@ -78,6 +116,12 @@ async def get_orders(
                 eo_col_filt = 'EQUNR_Код' if 'EQUNR_Код' in df_f.columns else 'ЕО'
                 if eo_col_filt in df_f.columns:
                     df_f = df_f[~is_empty_eo_mask(df_f[eo_col_filt])]
+        # Фильтр по кодам ЕО (из тегов расширенного поиска)
+        eo_codes = quick.get('eo_codes', [])
+        if eo_codes:
+            eo_col_filt = 'EQUNR_Код' if 'EQUNR_Код' in df_f.columns else 'ЕО'
+            if eo_col_filt in df_f.columns:
+                df_f = df_f[df_f[eo_col_filt].astype(str).isin([str(x) for x in eo_codes])]
         # Поиск по нескольким номерам заказов
         order_ids = quick.get('order_ids', [])
         if order_ids and 'ID' in df_f.columns:

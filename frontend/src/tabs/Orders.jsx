@@ -31,11 +31,51 @@ export default function Orders({ activeMethod, setActiveMethod }) {
   const [order, setOrder] = useState('desc');
 
   // Быстрые фильтры
-  const [qf, setQf] = useState({ author: [], tm: [], method: [], ceh: [], zavod: [], rm: [], eo: [], order_ids: [] });
-  const [appliedQf, setAppliedQf] = useState({ author: [], tm: [], method: [], ceh: [], zavod: [], rm: [], eo: [], order_ids: [] });
+  const [qf, setQf] = useState({ author: [], tm: [], method: [], ceh: [], zavod: [], rm: [], eo: [], order_ids: [], eo_codes: [] });
+  const [appliedQf, setAppliedQf] = useState({ author: [], tm: [], method: [], ceh: [], zavod: [], rm: [], eo: [], order_ids: [], eo_codes: [] });
   const [orderIdInput, setOrderIdInput] = useState('');
 
+  // Расширенный поиск ЕО
+  const [eoSearchQuery, setEoSearchQuery] = useState('');
+  const [eoSearchResults, setEoSearchResults] = useState([]);
+  const [eoSearchLoading, setEoSearchLoading] = useState(false);
+  const [eoTags, setEoTags] = useState([]); // [{code, name}]
+
   const updateQf = (key, vals) => setQf(prev => ({ ...prev, [key]: vals }));
+
+  // Поиск ЕО по названию и коду
+  useEffect(() => {
+    if (!sessionId || eoSearchQuery.trim().length < 1) {
+      setEoSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setEoSearchLoading(true);
+      apiGet('/api/equipment/search', { session_id: sessionId, q: eoSearchQuery.trim() })
+        .then(res => setEoSearchResults(res.results || []))
+        .catch(() => setEoSearchResults([]))
+        .finally(() => setEoSearchLoading(false));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [sessionId, eoSearchQuery]);
+
+  // Добавить тег ЕО
+  const addEoTag = (item) => {
+    if (eoTags.some(t => t.code === item.code)) return;
+    const newTags = [...eoTags, item];
+    setEoTags(newTags);
+    setEoSearchQuery('');
+    setEoSearchResults([]);
+    // Обновляем eo_codes в quick_filters
+    setQf(prev => ({ ...prev, eo_codes: newTags.map(t => t.code) }));
+  };
+
+  // Удалить тег ЕО
+  const removeEoTag = (code) => {
+    const newTags = eoTags.filter(t => t.code !== code);
+    setEoTags(newTags);
+    setQf(prev => ({ ...prev, eo_codes: newTags.map(t => t.code) }));
+  };
 
   // Автоустановка фильтра при переходе с вкладки Риски
   useEffect(() => {
@@ -61,9 +101,11 @@ export default function Orders({ activeMethod, setActiveMethod }) {
   };
 
   const resetQuickFilters = () => {
-    const empty = { author: [], tm: [], method: [], ceh: [], zavod: [], rm: [], eo: [], order_ids: [] };
+    const empty = { author: [], tm: [], method: [], ceh: [], zavod: [], rm: [], eo: [], order_ids: [], eo_codes: [] };
     setQf(empty);
     setAppliedQf(empty);
+    setEoTags([]);
+    setEoSearchQuery('');
     setPage(1);
   };
 
@@ -140,6 +182,67 @@ export default function Orders({ activeMethod, setActiveMethod }) {
           <TagSelect label="Раб. место (РМ)" options={quickOpts.rm || []} value={qf.rm} onChange={v => updateQf('rm', v)} placeholder="Выбрать РМ..." />
           <TagSelect label="Оборудование (ЕО)" options={quickOpts.eo || []} value={qf.eo} onChange={v => updateQf('eo', v)} placeholder="Выбрать ЕО..." />
         </div>
+        {/* Расширенный поиск по ЕО (название + код) */}
+        <div style={{ marginBottom: 8, position: 'relative' }}>
+          <label style={{ fontSize: 12, color: C.dim, display: 'block', marginBottom: 3 }}>Поиск оборудования (по названию или коду ЕО)</label>
+          {/* Теги выбранных ЕО */}
+          {eoTags.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
+              {eoTags.map(tag => (
+                <span key={tag.code} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                  padding: '2px 8px', borderRadius: 4, fontSize: 11,
+                  background: `${C.accent}20`, color: C.accent, border: `1px solid ${C.accent}40`,
+                }}>
+                  <span style={{ fontWeight: 600 }}>{tag.code}</span>
+                  {tag.name && <span style={{ color: C.muted, marginLeft: 2 }}>{tag.name.length > 30 ? tag.name.slice(0,30)+'...' : tag.name}</span>}
+                  <button onClick={() => removeEoTag(tag.code)} style={{
+                    background: 'none', border: 'none', color: C.accent, cursor: 'pointer', padding: 0, fontSize: 13, lineHeight: 1,
+                  }}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <input
+            value={eoSearchQuery}
+            onChange={e => setEoSearchQuery(e.target.value)}
+            placeholder="Введите название или код ЕО..."
+            style={{
+              width: '100%', padding: '6px 10px', background: C.bg, border: `1px solid ${C.border}`,
+              borderRadius: 6, color: C.text, fontSize: 12, outline: 'none', boxSizing: 'border-box',
+            }}
+          />
+          {eoSearchLoading && <span style={{ fontSize: 11, color: C.muted, marginLeft: 6 }}>Поиск...</span>}
+          {eoSearchResults.length > 0 && (
+            <div style={{
+              position: 'absolute', left: 0, right: 0, zIndex: 100,
+              background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6,
+              maxHeight: 220, overflowY: 'auto', marginTop: 2,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            }}>
+              {eoSearchResults.map((item, idx) => (
+                <div key={idx} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '6px 10px', fontSize: 12, color: C.text,
+                  borderBottom: `1px solid ${C.border}33`,
+                }}
+                  onMouseEnter={e => e.currentTarget.style.background = `${C.accent}15`}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <span>
+                    <span style={{ color: C.accent, fontWeight: 600 }}>{item.code}</span>
+                    {item.name && <span style={{ color: C.muted, marginLeft: 6 }}>{item.name}</span>}
+                  </span>
+                  <button onClick={() => addEoTag(item)} style={{
+                    padding: '2px 8px', background: `${C.accent}20`, border: `1px solid ${C.accent}40`,
+                    borderRadius: 4, color: C.accent, cursor: 'pointer', fontSize: 14, lineHeight: 1, flexShrink: 0,
+                  }}>+</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Поиск по номерам заказов */}
         <div style={{ marginBottom: 8 }}>
           <label style={{ fontSize: 12, color: C.dim, display: 'block', marginBottom: 3 }}>Номера заказов (через запятую)</label>

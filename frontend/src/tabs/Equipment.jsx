@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList, LineChart, Line } from 'recharts';
 import { C, ABC_COLORS } from '../theme/arctic';
 import { useFilters } from '../hooks/useFilters';
@@ -54,6 +54,25 @@ export default function Equipment() {
   // Типы графиков
   const [classesChartType, setClassesChartType] = useState('hbar');
   const [freqChartType, setFreqChartType] = useState('hbar');
+
+  // TOP-50: развернутые строки (accordion)
+  const [expandedEo, setExpandedEo] = useState(null); // код ЕО
+  const [expandedOrders, setExpandedOrders] = useState([]);
+  const [expandedLoading, setExpandedLoading] = useState(false);
+
+  const toggleExpand = (eoCode) => {
+    if (expandedEo === eoCode) {
+      setExpandedEo(null);
+      setExpandedOrders([]);
+      return;
+    }
+    setExpandedEo(eoCode);
+    setExpandedLoading(true);
+    apiGet('/api/equipment/orders', { session_id: sessionId, filters, thresholds, eo_code: eoCode })
+      .then(res => setExpandedOrders(res.orders || []))
+      .catch(() => setExpandedOrders([]))
+      .finally(() => setExpandedLoading(false));
+  };
 
   useEffect(() => {
     if (!sessionId) return;
@@ -141,11 +160,11 @@ export default function Equipment() {
   // Сортировка для bar chart
   const classesForChart = [...classes_data].sort((a, b) => b.fact - a.fact);
 
-  // Заголовки TOP-50 с сортировкой
+  // Заголовки TOP-50 с сортировкой — Наименование в крайнем левом
   const topHeaders = [
     { key: '#', label: '#', sortable: false },
-    { key: 'eo', label: 'ЕО', sortable: true },
     { key: 'name', label: 'Наименование', sortable: true },
+    { key: 'eo', label: 'Код ЕО', sortable: true },
     { key: 'class_name', label: 'Класс', sortable: true },
     { key: 'n_orders', label: 'Заказов', sortable: true },
     { key: 'plan', label: 'План ₽', sortable: true },
@@ -372,22 +391,71 @@ export default function Equipment() {
                 </tr>
               </thead>
               <tbody>
-                {sortedTop50.map((r, i) => (
-                  <tr key={i} style={{ borderBottom: `1px solid ${C.border}33` }}>
-                    <td style={{ color: C.dim, fontSize: 12, padding: '6px 10px' }}>{i + 1}</td>
-                    <td style={{ color: C.accent, fontSize: 13, fontWeight: 600, padding: '6px 10px' }}>{r.eo}</td>
-                    <td style={{ color: C.text, fontSize: 12, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '6px 10px' }}
-                      title={r.name}>{r.name}</td>
-                    <td style={{ color: C.muted, fontSize: 12, padding: '6px 10px' }}>{r.class_name}</td>
-                    <td style={{ color: C.text, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{r.n_orders}</td>
-                    <td style={{ color: C.text, fontSize: 12, textAlign: 'right', padding: '6px 10px' }}>{fmtShort(r.plan)} ₽</td>
-                    <td style={{ color: C.text, fontSize: 12, textAlign: 'right', padding: '6px 10px' }}>{fmtShort(r.fact)} ₽</td>
-                    <td style={{ color: r.dev > 0 ? C.danger : r.dev < 0 ? C.success : C.muted, fontSize: 12, textAlign: 'right', padding: '6px 10px' }}>
-                      {r.dev > 0 ? '+' : ''}{fmtShort(r.dev)} ₽
-                    </td>
-                    <td style={{ padding: '6px 10px' }}><ExcelEoBtn eo={r.eo} /></td>
-                  </tr>
-                ))}
+                {sortedTop50.map((r, i) => {
+                  const isExpanded = expandedEo === r.eo;
+                  return (
+                    <React.Fragment key={i}>
+                      <tr style={{ borderBottom: `1px solid ${C.border}33`, cursor: 'pointer' }}>
+                        <td style={{ color: C.dim, fontSize: 12, padding: '6px 10px' }}>{i + 1}</td>
+                        <td onClick={() => toggleExpand(r.eo)}
+                          style={{ color: C.accent, fontSize: 13, fontWeight: 600, padding: '6px 10px', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
+                          title={`${r.name} — нажмите для детализации`}>
+                          {isExpanded ? '▼ ' : '▶ '}{r.name}
+                        </td>
+                        <td style={{ color: C.muted, fontSize: 12, padding: '6px 10px' }}>{r.eo}</td>
+                        <td style={{ color: C.muted, fontSize: 12, padding: '6px 10px' }}>{r.class_name}</td>
+                        <td style={{ color: C.text, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{r.n_orders}</td>
+                        <td style={{ color: C.text, fontSize: 12, textAlign: 'right', padding: '6px 10px' }}>{fmtShort(r.plan)} ₽</td>
+                        <td style={{ color: C.text, fontSize: 12, textAlign: 'right', padding: '6px 10px' }}>{fmtShort(r.fact)} ₽</td>
+                        <td style={{ color: r.dev > 0 ? C.danger : r.dev < 0 ? C.success : C.muted, fontSize: 12, textAlign: 'right', padding: '6px 10px' }}>
+                          {r.dev > 0 ? '+' : ''}{fmtShort(r.dev)} ₽
+                        </td>
+                        <td style={{ padding: '6px 10px' }}><ExcelEoBtn eo={r.eo} /></td>
+                      </tr>
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan={topHeaders.length} style={{ padding: 0 }}>
+                            <div style={{
+                              background: 'linear-gradient(145deg, #1e293b 0%, #1a2332 100%)',
+                              padding: '12px 16px', borderLeft: `3px solid ${C.accent}`,
+                              margin: '0 8px 8px 8px', borderRadius: '0 0 8px 8px',
+                            }}>
+                              {expandedLoading ? (
+                                <p style={{ color: C.muted, fontSize: 12 }}>Загрузка заказов...</p>
+                              ) : expandedOrders.length === 0 ? (
+                                <p style={{ color: C.muted, fontSize: 12 }}>Нет заказов</p>
+                              ) : (
+                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                  <thead>
+                                    <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                                      {['Заказ', 'Дата', 'Вид работ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽'].map(h => (
+                                        <th key={h} style={{ color: C.dim, fontSize: 10, padding: '4px 8px', textAlign: 'left', fontWeight: 600 }}>{h}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {expandedOrders.map((ord, j) => (
+                                      <tr key={j} style={{ borderBottom: `1px solid ${C.border}22` }}>
+                                        <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>{ord.id}</td>
+                                        <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date}</td>
+                                        <td style={{ color: C.text, fontSize: 11, padding: '4px 8px' }}>{ord.vid}</td>
+                                        <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px' }}>{ord.stat}</td>
+                                        <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                          title={ord.text}>{ord.text}</td>
+                                        <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.plan)}</td>
+                                        <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.fact)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -484,7 +552,32 @@ export default function Equipment() {
       {frequency.length > 0 && (
         <Card title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>7. Частота обслуживания — средний интервал между заказами (дни) <ChartSettings chartId="eq-freq" chartTypes={[{value:'hbar',label:'Горизонт.'},{value:'vbar',label:'Вертикал.'},{value:'line',label:'Линия'}]} currentChartType={freqChartType} onChartTypeChange={setFreqChartType} /></span>}>
           <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
-            TOP-{frequency.length} ЕО с наименьшим интервалом (только ЕО с 2+ заказами)
+            TOP-{frequency.length} ЕО с наименьшим интервалом (только ЕО с 2+ заказами). Отсортировано по наименьшему среднему интервалу.
+          </div>
+          {/* Таблица частоты обслуживания */}
+          <div style={{ overflowX: 'auto', marginBottom: 16, borderRadius: 8, border: `1px solid ${C.border}` }}>
+            <table>
+              <thead>
+                <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
+                  {['Код ЕО', 'Название ЕО', 'Кол-во заказов', 'Средний интервал (дни)', 'Мин интервал', 'Макс интервал'].map(h => (
+                    <th key={h} style={{ color: C.muted, fontSize: 11, padding: '8px 10px', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {frequency.map((f, i) => (
+                  <tr key={i} style={{ borderBottom: `1px solid ${C.border}33` }}>
+                    <td style={{ color: C.accent, fontSize: 12, fontWeight: 600, padding: '6px 10px' }}>{f.eo}</td>
+                    <td style={{ color: C.text, fontSize: 12, padding: '6px 10px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      title={f.equipment_name}>{f.equipment_name || '—'}</td>
+                    <td style={{ color: C.text, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.n_orders}</td>
+                    <td style={{ color: C.warning, fontSize: 12, textAlign: 'center', padding: '6px 10px', fontWeight: 600 }}>{f.avg_interval} дн.</td>
+                    <td style={{ color: C.success, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.min_interval ?? '—'} дн.</td>
+                    <td style={{ color: C.danger, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.max_interval ?? '—'} дн.</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
           {renderFreqChart()}
         </Card>
