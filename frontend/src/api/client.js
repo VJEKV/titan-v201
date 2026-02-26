@@ -49,8 +49,11 @@ export async function apiDownload(endpoint, params = {}) {
 
   const blob = await res.blob();
   const cd = res.headers.get('Content-Disposition') || '';
-  const match = cd.match(/filename="?([^";\n]+)"?/);
-  const fname = match ? decodeURIComponent(match[1]) : `titan_export_${new Date().toISOString().slice(0,10)}.xlsx`;
+  const starMatch = cd.match(/filename\*=UTF-8''([^;\s]+)/i);
+  const plainMatch = cd.match(/filename="?([^";\n]+)"?/);
+  const fname = starMatch ? decodeURIComponent(starMatch[1])
+    : plainMatch ? decodeURIComponent(plainMatch[1])
+    : `titan_export_${new Date().toISOString().slice(0,10)}.xlsx`;
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = fname;

@@ -6,6 +6,7 @@ api/routes_planners.py — GET /api/tab/planners
 import json
 import pandas as pd
 from io import BytesIO
+from urllib.parse import quote
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 from datetime import datetime
@@ -344,8 +345,9 @@ async def export_scoring_excel(
     output.seek(0)
 
     filename = f"Скоринг_плановиков_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    encoded = quote(filename)
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded}; filename=\"scoring.xlsx\""}
     )

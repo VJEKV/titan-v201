@@ -114,6 +114,9 @@ export default function Planners() {
   const exportScoringExcel = () => {
     apiDownload('/api/planners/scoring_excel', {
       session_id: sessionId, filters, thresholds,
+    }).catch(err => {
+      console.error('Ошибка экспорта:', err);
+      alert('Ошибка при выгрузке Excel. Попробуйте ещё раз.');
     });
   };
 
