@@ -145,7 +145,7 @@ async def get_equipment(
     top50 = []
     # Определяем колонку дат для отображения диапазона
     top_date_col = None
-    for dc in ['Начало', 'Конец', 'Факт_Начало', 'Факт_Конец']:
+    for dc in ['Факт_Начало', 'Факт_Конец', 'Начало', 'Конец']:
         if dc in df_with_eo.columns and df_with_eo[dc].notna().any():
             top_date_col = dc
             break
@@ -268,7 +268,7 @@ async def get_equipment(
     frequency = []
     # Пробуем все возможные колонки дат для частоты
     freq_date_col = None
-    for col_candidate in ['Начало', 'Конец', 'Факт_Начало', 'Факт_Конец']:
+    for col_candidate in ['Факт_Начало', 'Факт_Конец', 'Начало', 'Конец']:
         if col_candidate in df_with_eo.columns:
             # Пробуем конвертировать в datetime если ещё не datetime
             test_series = pd.to_datetime(df_with_eo[col_candidate], errors='coerce', dayfirst=True)
@@ -447,7 +447,13 @@ async def get_equipment_orders(
         order_id = str(row.get('ID', '')) if pd.notna(row.get('ID')) else ''
         text = str(row.get('Текст', '')) if pd.notna(row.get('Текст')) else ''
         vid = str(row.get('Вид', '')) if pd.notna(row.get('Вид')) else ''
-        date_val = row.get('Начало', None)
+        # Приоритет: фактическая дата → плановая
+        date_val = None
+        for _dc in ['Факт_Начало', 'Факт_Конец', 'Начало', 'Конец']:
+            v = row.get(_dc, None)
+            if pd.notna(v):
+                date_val = v
+                break
         date_str = ''
         if pd.notna(date_val):
             date_str = date_val.isoformat()[:10] if hasattr(date_val, 'isoformat') else str(date_val)[:10]
