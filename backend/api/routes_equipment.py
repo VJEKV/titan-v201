@@ -143,18 +143,35 @@ async def get_equipment(
 
     # === 3. TOP-50 ЕО по затратам ===
     top50 = []
+    # Определяем колонку дат для отображения диапазона
+    top_date_col = None
+    for dc in ['Начало', 'Конец', 'Факт_Начало', 'Факт_Конец']:
+        if dc in df_with_eo.columns and df_with_eo[dc].notna().any():
+            top_date_col = dc
+            break
+    top_date_label = top_date_col or ''
+
     if len(df_with_eo) > 0:
-        eo_stats = df_with_eo.groupby(eo_col).agg(
-            n_orders=('ID', 'count'),
-            fact=('Fact_N', 'sum'),
-            plan=('Plan_N', 'sum'),
-            name=(eo_name_col, 'first'),
-            cls=('Класс_ЕО', 'first'),
-        ).reset_index()
+        agg_dict = {
+            'n_orders': ('ID', 'count'),
+            'fact': ('Fact_N', 'sum'),
+            'plan': ('Plan_N', 'sum'),
+            'name': (eo_name_col, 'first'),
+            'cls': ('Класс_ЕО', 'first'),
+        }
+        # ABC-критичность ЕО
+        if 'ABC' in df_with_eo.columns:
+            agg_dict['abc'] = ('ABC', 'first')
+        # Даты
+        if top_date_col:
+            agg_dict['date_first'] = (top_date_col, 'min')
+            agg_dict['date_last'] = (top_date_col, 'max')
+
+        eo_stats = df_with_eo.groupby(eo_col).agg(**agg_dict).reset_index()
         eo_stats['dev'] = eo_stats['fact'] - eo_stats['plan']
         eo_stats = eo_stats.sort_values('fact', ascending=False).head(50)
         for _, r in eo_stats.iterrows():
-            top50.append({
+            item = {
                 "eo": str(r[eo_col]),
                 "name": str(r['name'])[:60],
                 "class_name": str(r['cls']),
@@ -162,7 +179,20 @@ async def get_equipment(
                 "plan": _sf(r['plan']),
                 "fact": _sf(r['fact']),
                 "dev": _sf(r['dev']),
-            })
+            }
+            if 'abc' in r.index and pd.notna(r['abc']):
+                item['abc'] = str(r['abc'])
+            else:
+                item['abc'] = ''
+            if 'date_first' in r.index and pd.notna(r['date_first']):
+                item['date_first'] = r['date_first'].isoformat()[:10] if hasattr(r['date_first'], 'isoformat') else str(r['date_first'])[:10]
+            else:
+                item['date_first'] = ''
+            if 'date_last' in r.index and pd.notna(r['date_last']):
+                item['date_last'] = r['date_last'].isoformat()[:10] if hasattr(r['date_last'], 'isoformat') else str(r['date_last'])[:10]
+            else:
+                item['date_last'] = ''
+            top50.append(item)
 
     # === 4. Лидеры по внеплановым среди A и B ===
     ABC_AB_VALUES = {'A', 'B', 'Высококритичное', 'Оч.высокая/Особокрит', 'Оч.высокая', 'Особокритичное',
@@ -266,11 +296,31 @@ async def get_equipment(
         eo_multi = (eo_counts >= 2).sum()
         print(f"[FREQ DEBUG] rows with valid date: {len(df_freq)}, unique EO: {len(eo_counts)}, EO with 2+ orders: {eo_multi}")
 
-        # Сумма факт по каждому ЕО — для отображения в таблице частоты
+        # Сумма факт и план по каждому ЕО — для отображения в таблице частоты
         eo_fact_map = {}
+        eo_plan_map = {}
+        eo_abc_map = {}
+        eo_date_first_map = {}
+        eo_date_last_map = {}
         if 'Fact_N' in df_with_eo.columns:
             eo_fact_agg = df_with_eo.groupby(eo_col)['Fact_N'].sum()
             eo_fact_map = {str(k): _sf(v) for k, v in eo_fact_agg.items()}
+        if 'Plan_N' in df_with_eo.columns:
+            eo_plan_agg = df_with_eo.groupby(eo_col)['Plan_N'].sum()
+            eo_plan_map = {str(k): _sf(v) for k, v in eo_plan_agg.items()}
+        if 'ABC' in df_with_eo.columns:
+            eo_abc_agg = df_with_eo.groupby(eo_col)['ABC'].first()
+            eo_abc_map = {str(k): str(v) if pd.notna(v) else '' for k, v in eo_abc_agg.items()}
+        if freq_date_col:
+            dates_parsed = pd.to_datetime(df_with_eo[freq_date_col], errors='coerce', dayfirst=True)
+            df_tmp = df_with_eo.copy()
+            df_tmp['_parsed_date'] = dates_parsed
+            date_min = df_tmp.groupby(eo_col)['_parsed_date'].min()
+            date_max = df_tmp.groupby(eo_col)['_parsed_date'].max()
+            for k, v in date_min.items():
+                eo_date_first_map[str(k)] = v.isoformat()[:10] if pd.notna(v) and hasattr(v, 'isoformat') else ''
+            for k, v in date_max.items():
+                eo_date_last_map[str(k)] = v.isoformat()[:10] if pd.notna(v) and hasattr(v, 'isoformat') else ''
 
         # Средний интервал между заказами на ЕО
         intervals = []
@@ -298,6 +348,10 @@ async def get_equipment(
                     "min_interval": round(min_interval, 0),
                     "max_interval": round(max_interval, 0),
                     "total_fact": eo_fact_map.get(str(eo_id), 0),
+                    "total_plan": eo_plan_map.get(str(eo_id), 0),
+                    "abc": eo_abc_map.get(str(eo_id), ''),
+                    "date_first": eo_date_first_map.get(str(eo_id), ''),
+                    "date_last": eo_date_last_map.get(str(eo_id), ''),
                 })
         intervals.sort(key=lambda x: x['avg_interval'])
         frequency = intervals[:100]
@@ -364,6 +418,8 @@ async def get_equipment(
         "classes_data": classes_data,
         "per_eo_data": per_eo_data,
         "top50": top50,
+        "top_date_label": top_date_label,
+        "freq_date_label": freq_date_col or '',
         "unplanned_leaders": unplanned_leaders,
         "heatmap": heatmap,
         "heatmap_eo_stats": heatmap_eo_stats,

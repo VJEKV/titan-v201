@@ -112,7 +112,7 @@ export default function Equipment() {
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;
 
-  const { kpi, abc_data, classes_data, per_eo_data, top50, unplanned_leaders, heatmap, heatmap_eo_stats, frequency } = data;
+  const { kpi, abc_data, classes_data, per_eo_data, top50, unplanned_leaders, heatmap, heatmap_eo_stats, frequency, top_date_label, freq_date_label } = data;
   const fs = csAbc.fontSizes;
   const fontFamily = csAbc.font;
 
@@ -189,15 +189,19 @@ export default function Equipment() {
   const classesForChart = [...classes_data].sort((a, b) => b.fact - a.fact);
 
   // Заголовки TOP-50 с сортировкой — Наименование в крайнем левом
+  const topDateHint = top_date_label ? ` (${top_date_label})` : '';
   const topHeaders = [
     { key: '#', label: '#', sortable: false },
     { key: 'name', label: 'Наименование', sortable: true },
     { key: 'eo', label: 'Код ЕО', sortable: true },
+    { key: 'abc', label: 'ABC', sortable: true },
     { key: 'class_name', label: 'Класс', sortable: true },
     { key: 'n_orders', label: 'Заказов', sortable: true },
     { key: 'plan', label: 'План ₽', sortable: true },
     { key: 'fact', label: 'Факт ₽', sortable: true },
     { key: 'dev', label: 'Откл. ₽', sortable: true },
+    { key: 'date_first', label: `Первый${topDateHint}`, sortable: true },
+    { key: 'date_last', label: `Последний${topDateHint}`, sortable: true },
     { key: '', label: '', sortable: false },
   ];
 
@@ -431,6 +435,7 @@ export default function Equipment() {
                           {isExpanded ? '▼ ' : '▶ '}{r.name}
                         </td>
                         <td style={{ color: C.muted, fontSize: 12, padding: '6px 10px' }}>{r.eo}</td>
+                        <td style={{ color: r.abc === 'A' || r.abc === 'Высококритичное' ? C.danger : r.abc === 'B' || r.abc === 'Средней критичности' ? C.warning : r.abc === 'C' ? C.success : C.muted, fontSize: 12, fontWeight: 600, padding: '6px 10px', textAlign: 'center' }}>{r.abc || '—'}</td>
                         <td style={{ color: C.muted, fontSize: 12, padding: '6px 10px' }}>{r.class_name}</td>
                         <td style={{ color: C.text, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{r.n_orders}</td>
                         <td style={{ color: C.text, fontSize: 12, textAlign: 'right', padding: '6px 10px' }}>{fmtShort(r.plan)} ₽</td>
@@ -438,6 +443,8 @@ export default function Equipment() {
                         <td style={{ color: r.dev > 0 ? C.danger : r.dev < 0 ? C.success : C.muted, fontSize: 12, textAlign: 'right', padding: '6px 10px' }}>
                           {r.dev > 0 ? '+' : ''}{fmtShort(r.dev)} ₽
                         </td>
+                        <td style={{ color: C.muted, fontSize: 11, padding: '6px 10px', whiteSpace: 'nowrap' }}>{r.date_first || '—'}</td>
+                        <td style={{ color: C.muted, fontSize: 11, padding: '6px 10px', whiteSpace: 'nowrap' }}>{r.date_last || '—'}</td>
                         <td style={{ padding: '6px 10px' }}><ExcelEoBtn eo={r.eo} /></td>
                       </tr>
                       {isExpanded && (
@@ -579,14 +586,19 @@ export default function Equipment() {
       {/* 7. Частота обслуживания */}
       {frequency.length > 0 && (() => {
         // Сортировка частоты
+        const freqDateHint = freq_date_label ? ` (${freq_date_label})` : '';
         const freqHeaders = [
           { key: 'eo', label: 'Код ЕО' },
           { key: 'equipment_name', label: 'Название ЕО' },
-          { key: 'n_orders', label: 'Кол-во заказов' },
-          { key: 'total_fact', label: 'Сумма факт ₽' },
-          { key: 'avg_interval', label: 'Средний интервал (дни)' },
-          { key: 'min_interval', label: 'Мин интервал' },
-          { key: 'max_interval', label: 'Макс интервал' },
+          { key: 'abc', label: 'ABC' },
+          { key: 'n_orders', label: 'Заказов' },
+          { key: 'total_plan', label: 'План ₽' },
+          { key: 'total_fact', label: 'Факт ₽' },
+          { key: 'avg_interval', label: 'Ср. интервал (дни)' },
+          { key: 'min_interval', label: 'Мин инт.' },
+          { key: 'max_interval', label: 'Макс инт.' },
+          { key: 'date_first', label: `Первый${freqDateHint}` },
+          { key: 'date_last', label: `Последний${freqDateHint}` },
         ];
         const sortedFreq = [...frequency].sort((a, b) => {
           const dir = freqSort.dir === 'desc' ? -1 : 1;
@@ -631,11 +643,15 @@ export default function Equipment() {
                           title={`${f.equipment_name || '—'} — нажмите для детализации`}>
                           {isFreqExpanded ? '▼ ' : '▶ '}{f.equipment_name || '—'}
                         </td>
+                        <td style={{ color: f.abc === 'A' || f.abc === 'Высококритичное' ? C.danger : f.abc === 'B' || f.abc === 'Средней критичности' ? C.warning : f.abc === 'C' ? C.success : C.muted, fontSize: 12, fontWeight: 600, padding: '6px 10px', textAlign: 'center' }}>{f.abc || '—'}</td>
                         <td style={{ color: C.text, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.n_orders}</td>
+                        <td style={{ color: C.text, fontSize: 12, textAlign: 'right', padding: '6px 10px' }}>{fmtShort(f.total_plan)} ₽</td>
                         <td style={{ color: C.orange, fontSize: 12, textAlign: 'right', padding: '6px 10px', fontWeight: 600 }}>{fmtShort(f.total_fact)} ₽</td>
                         <td style={{ color: C.warning, fontSize: 12, textAlign: 'center', padding: '6px 10px', fontWeight: 600 }}>{f.avg_interval} дн.</td>
                         <td style={{ color: C.success, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.min_interval ?? '—'} дн.</td>
                         <td style={{ color: C.danger, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.max_interval ?? '—'} дн.</td>
+                        <td style={{ color: C.muted, fontSize: 11, padding: '6px 10px', whiteSpace: 'nowrap' }}>{f.date_first || '—'}</td>
+                        <td style={{ color: C.muted, fontSize: 11, padding: '6px 10px', whiteSpace: 'nowrap' }}>{f.date_last || '—'}</td>
                       </tr>
                       {isFreqExpanded && (
                         <tr>
