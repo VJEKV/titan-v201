@@ -8,6 +8,7 @@ import KpiRow from '../components/KpiRow';
 import SectionTitle from '../components/SectionTitle';
 import Card from '../components/Card';
 import ChartSettings, { useChartSettings } from '../components/ChartSettings';
+import DateFootnote from '../components/DateFootnote';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "0";
@@ -228,6 +229,7 @@ export default function Timeline() {
 
   return (
     <div style={{ fontFamily }}>
+      <DateFootnote />
       <SectionTitle sub="Помесячная аналитика: количество, длительность, стоимость">
         Анализ сроков
       </SectionTitle>

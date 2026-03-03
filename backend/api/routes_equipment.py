@@ -382,35 +382,38 @@ async def get_equipment(
     if total_eo > 0:
         avg_orders_per_eo = round(len(df_with_eo) / total_eo, 1)
 
-    # Маппинг ABC: поддержка как кодов (A/B/C), так и текстовых описаний
-    ABC_A_VALUES = {'A', 'Высококритичное', 'Оч.высокая/Особокрит', 'Оч.высокая', 'Особокритичное', 'Высокая'}
-    ABC_B_VALUES = {'B', 'Средней критичности', 'Средняя', 'Средней крит.'}
-    ABC_C_VALUES = {'C', 'Не критично', 'Низкой критичности'}
+    # Маппинг ABC: 4 уровня критичности
+    ABC_OSOB_VALUES = {'Особокритичное', 'Оч.высокая/Особокрит', 'Оч.высокая'}  # Особо критичные
+    ABC_VYSOK_VALUES = {'A', 'Высококритичное', 'Высокая'}  # Высоко критичные
+    ABC_LOW_VALUES = {'B', 'Средней критичности', 'Средняя', 'Средней крит.', 'Низкой критичности'}  # Низкой критичности
+    ABC_NONE_VALUES = {'C', 'Не критично'}  # Не критично
 
-    abc_c = 0
-    # Ищем по ABC (текст), потом по ABC_Код (код)
+    abc_osob = 0
+    abc_vysok = 0
+    abc_low = 0
+    abc_none = 0
     for abc_col_name in ['ABC', 'ABC_Код']:
         if abc_col_name in df_with_eo.columns:
             vals = df_with_eo[abc_col_name].astype(str)
-            abc_a_mask = vals.isin(ABC_A_VALUES)
-            abc_b_mask = vals.isin(ABC_B_VALUES)
-            abc_c_mask = vals.isin(ABC_C_VALUES)
-            a_count = int(df_with_eo.loc[abc_a_mask, eo_col].nunique())
-            b_count = int(df_with_eo.loc[abc_b_mask, eo_col].nunique())
-            c_count = int(df_with_eo.loc[abc_c_mask, eo_col].nunique())
-            if a_count > 0 or b_count > 0 or c_count > 0:
-                abc_a = a_count
-                abc_b = b_count
-                abc_c = c_count
+            osob_count = int(df_with_eo.loc[vals.isin(ABC_OSOB_VALUES), eo_col].nunique())
+            vysok_count = int(df_with_eo.loc[vals.isin(ABC_VYSOK_VALUES), eo_col].nunique())
+            low_count = int(df_with_eo.loc[vals.isin(ABC_LOW_VALUES), eo_col].nunique())
+            none_count = int(df_with_eo.loc[vals.isin(ABC_NONE_VALUES), eo_col].nunique())
+            if osob_count > 0 or vysok_count > 0 or low_count > 0 or none_count > 0:
+                abc_osob = osob_count
+                abc_vysok = vysok_count
+                abc_low = low_count
+                abc_none = none_count
                 break
     no_class = int(len(df_no_eo))
 
     return {
         "kpi": {
             "total_eo": total_eo,
-            "abc_a": abc_a,
-            "abc_b": abc_b,
-            "abc_c": abc_c,
+            "abc_osob": abc_osob,
+            "abc_vysok": abc_vysok,
+            "abc_low": abc_low,
+            "abc_none": abc_none,
             "no_eo_orders": no_class,
             "avg_orders_per_eo": avg_orders_per_eo,
         },
@@ -460,6 +463,12 @@ async def get_equipment_orders(
         fact = _sf(row.get('Fact_N', 0))
         plan = _sf(row.get('Plan_N', 0))
         stat = str(row.get('STAT', '')) if pd.notna(row.get('STAT')) else ''
+        # Каскадные даты
+        date_source = str(row.get('Источник_Дат', 'NONE')) if pd.notna(row.get('Источник_Дат')) else 'NONE'
+        ds_val = row.get('Дата_Начало')
+        de_val = row.get('Дата_Конец')
+        date_start_str = ds_val.strftime('%d.%m.%Y') if pd.notna(ds_val) and hasattr(ds_val, 'strftime') else ''
+        date_end_str = de_val.strftime('%d.%m.%Y') if pd.notna(de_val) and hasattr(de_val, 'strftime') else ''
         orders.append({
             "id": order_id,
             "text": text,
@@ -468,6 +477,9 @@ async def get_equipment_orders(
             "fact": fact,
             "plan": plan,
             "stat": stat,
+            "date_start": date_start_str,
+            "date_end": date_end_str,
+            "date_source": date_source,
         })
     # Сортируем по дате (свежие сверху)
     orders.sort(key=lambda x: x['date'], reverse=True)

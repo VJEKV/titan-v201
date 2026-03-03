@@ -44,6 +44,12 @@ def _get_df(session_id, filters_str, thresholds_str):
     return df_f
 
 
+def _fmt_cascade_date(val):
+    if pd.notna(val):
+        return val.strftime('%d.%m.%Y') if hasattr(val, 'strftime') else str(val)[:10]
+    return ''
+
+
 def _build_orders_list(df_subset):
     """Стандартный список заказов из подмножества DataFrame."""
     orders = []
@@ -63,9 +69,14 @@ def _build_orders_list(df_subset):
         fact = _sf(row.get('Fact_N', 0))
         plan = _sf(row.get('Plan_N', 0))
         stat = str(row.get('STAT', '')) if pd.notna(row.get('STAT')) else ''
+        # Каскадные даты
+        date_source = str(row.get('Источник_Дат', 'NONE')) if pd.notna(row.get('Источник_Дат')) else 'NONE'
         orders.append({
             "id": order_id, "text": text, "vid": vid,
             "date": date_str, "fact": fact, "plan": plan, "stat": stat,
+            "date_start": _fmt_cascade_date(row.get('Дата_Начало')),
+            "date_end": _fmt_cascade_date(row.get('Дата_Конец')),
+            "date_source": date_source,
         })
     return orders
 

@@ -35,14 +35,22 @@ const COLUMNS = [
 ];
 
 const INNER_COLUMNS = [
-  { key: 'id',   label: 'Заказ',      align: 'left',  type: 'str' },
-  { key: 'date', label: 'Дата',       align: 'left',  type: 'str' },
-  { key: 'vid',  label: 'Вид работ',  align: 'left',  type: 'str' },
-  { key: 'stat', label: 'Статус',     align: 'left',  type: 'str' },
-  { key: 'text', label: 'Текст работ',align: 'left',  type: 'str' },
-  { key: 'plan', label: 'План ₽',     align: 'right', type: 'num' },
-  { key: 'fact', label: 'Факт ₽',     align: 'right', type: 'num' },
+  { key: 'id',         label: 'Заказ',      align: 'left',  type: 'str' },
+  { key: 'date_start', label: 'Дата нач.',  align: 'left',  type: 'str' },
+  { key: 'date_end',   label: 'Дата кон.',  align: 'left',  type: 'str' },
+  { key: 'vid',        label: 'Вид работ',  align: 'left',  type: 'str' },
+  { key: 'stat',       label: 'Статус',     align: 'left',  type: 'str' },
+  { key: 'text',       label: 'Текст работ',align: 'left',  type: 'str' },
+  { key: 'plan',       label: 'План ₽',     align: 'right', type: 'num' },
+  { key: 'fact',       label: 'Факт ₽',     align: 'right', type: 'num' },
 ];
+
+/** Цвет даты по источнику каскада */
+function dateColor(source) {
+  if (source === 'FACT') return '#ffffff';
+  if (source === 'PLAN') return '#fbbf24';
+  return '#f43f5e';
+}
 
 export default function HeatmapTable({
   data,
@@ -188,15 +196,18 @@ export default function HeatmapTable({
                           <p style={{ color: C.muted, fontSize: 12 }}>Нет заказов</p>
                         ) : (
                           <>
-                            {onExportExcel && (
-                              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                              <span style={{ fontSize: 10, color: C.dim }}>
+                                <span style={{ color: '#ffffff' }}>белый</span> — факт, <span style={{ color: '#fbbf24' }}>жёлтый •</span> — план, <span style={{ color: '#f43f5e' }}>красный</span> — нет
+                              </span>
+                              {onExportExcel && (
                                 <button
                                   onClick={() => onExportExcel(row[nameKey])}
                                   style={{ ...PAGE_BTN, fontSize: 10 }}
                                   title="Выгрузить все заказы в Excel"
                                 >Excel</button>
-                              </div>
-                            )}
+                              )}
+                            </div>
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                               <thead>
                                 <tr style={{ borderBottom: `1px solid ${C.border}` }}>
@@ -217,10 +228,14 @@ export default function HeatmapTable({
                                 </tr>
                               </thead>
                               <tbody>
-                                {sortedOrders.map((ord, j) => (
+                                {sortedOrders.map((ord, j) => {
+                                  const dClr = dateColor(ord.date_source);
+                                  const planMark = ord.date_source === 'PLAN' ? ' \u2022' : '';
+                                  return (
                                   <tr key={j} style={{ borderBottom: `1px solid ${C.border}22` }}>
                                     <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>{ord.id}</td>
-                                    <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date}</td>
+                                    <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + planMark : '—'}</td>
+                                    <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_end ? ord.date_end + planMark : '—'}</td>
                                     <td style={{ color: C.text, fontSize: 11, padding: '4px 8px' }}>{ord.vid}</td>
                                     <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px' }}>{ord.stat}</td>
                                     <td style={{
@@ -230,7 +245,8 @@ export default function HeatmapTable({
                                     <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.plan)}</td>
                                     <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.fact)}</td>
                                   </tr>
-                                ))}
+                                  );
+                                })}
                               </tbody>
                             </table>
                             {expandedTotal > pageSize && (

@@ -42,10 +42,13 @@ def _is_empty(val) -> bool:
     return str_val in EMPTY_VALUES or len(str_val) == 0
 
 
-def _calc_fill_rate(df):
-    """Расчёт fill_rate — та же формула что и в routes_quality."""
+def _calc_fill_rate(df, source_columns=None):
+    """Расчёт fill_rate — только по реально присутствующим полям из файла."""
     columns_map = {}
     for col in df.columns:
+        # Пропускаем колонки, которых не было в исходном файле
+        if source_columns and col not in source_columns:
+            continue
         if col in FIELD_MAPPING:
             columns_map[col] = FIELD_MAPPING[col]
         elif col in RENAMED_TO_ORIGINAL:
@@ -110,7 +113,8 @@ async def get_kpi(
     risk_pct = risk_count / max(total, 1) * 100
 
     # fill_rate — та же формула что на вкладке «Качество данных»
-    completeness = _calc_fill_rate(df_scored)
+    source_columns = df.attrs.get('source_columns', None)
+    completeness = _calc_fill_rate(df_scored, source_columns)
 
     # Максимальные карточки
     max_fact_row = df_scored.loc[df_scored['Fact_N'].idxmax()] if total > 0 else None
@@ -143,6 +147,28 @@ async def get_kpi(
         "n_users": _nunique('USER'),
     }
 
+    # Покрытие датами — 4 взаимоисключающие категории для каждой пары
+    # (факт+план, только факт, только план, нет дат)
+    date_stats = None
+    if total > 0:
+        ds = {}
+        # Булевы маски наличия дат
+        hf_start = df_scored['Факт_Начало'].notna() if 'Факт_Начало' in df_scored.columns else pd.Series(False, index=df_scored.index)
+        hp_start = df_scored['Начало'].notna() if 'Начало' in df_scored.columns else pd.Series(False, index=df_scored.index)
+        hf_end = df_scored['Факт_Конец'].notna() if 'Факт_Конец' in df_scored.columns else pd.Series(False, index=df_scored.index)
+        hp_end = df_scored['Конец'].notna() if 'Конец' in df_scored.columns else pd.Series(False, index=df_scored.index)
+        # Дата начала: 4 категории
+        ds['start_both'] = int((hf_start & hp_start).sum())
+        ds['start_fact_only'] = int((hf_start & ~hp_start).sum())
+        ds['start_plan_only'] = int((~hf_start & hp_start).sum())
+        ds['start_none'] = int((~hf_start & ~hp_start).sum())
+        # Дата окончания: 4 категории
+        ds['end_both'] = int((hf_end & hp_end).sum())
+        ds['end_fact_only'] = int((hf_end & ~hp_end).sum())
+        ds['end_plan_only'] = int((~hf_end & hp_end).sum())
+        ds['end_none'] = int((~hf_end & ~hp_end).sum())
+        date_stats = ds
+
     return {
         "total": total,
         "plan": plan,
@@ -156,6 +182,7 @@ async def get_kpi(
         "max_dev": _card(max_dev_row, 'Fact_N'),
         "max_risk": _card(max_risk_row, 'Risk_Sum'),
         "stats": stats,
+        "date_stats": date_stats,
         # Форматированные значения
         "plan_fmt": fmt_short(plan),
         "fact_fmt": fmt_short(fact),

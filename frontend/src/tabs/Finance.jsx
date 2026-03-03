@@ -9,6 +9,7 @@ import SectionTitle from '../components/SectionTitle';
 import HeatmapTable from '../components/HeatmapTable';
 import Card from '../components/Card';
 import ChartSettings, { useChartSettings } from '../components/ChartSettings';
+import DateFootnote from '../components/DateFootnote';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "0";
@@ -253,6 +254,7 @@ export default function Finance() {
 
   return (
     <div style={{ fontFamily }}>
+      <DateFootnote />
       <SectionTitle sub="Суммарная стоимость, отклонения по цехам и ТМ, ABC">
         Финансовый анализ
       </SectionTitle>

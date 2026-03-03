@@ -58,3 +58,15 @@ def fmt_short(val):
         return f"{sign}{abs_val / 1_000:.1f}\u041a"
     else:
         return f"{sign}{abs_val:.1f}"
+
+
+def fmt_date_styled(date_val, source):
+    """Возвращает dict {text, color} для даты с меткой источника."""
+    if pd.isna(date_val):
+        return {"text": "— нет даты —", "color": "#f43f5e"}
+    text = date_val.strftime('%d.%m.%Y')
+    if source == 'FACT':
+        return {"text": text, "color": "#ffffff"}
+    elif source == 'PLAN':
+        return {"text": text + " \u2022", "color": "#fbbf24"}
+    return {"text": "— нет даты —", "color": "#f43f5e"}

@@ -149,6 +149,18 @@ def process_data(df_raw):
 
     df = df.rename(columns={k: v for k, v in map_cols.items() if k in df.columns})
 
+    # Запоминаем колонки, реально присутствующие в исходном файле (до создания фиктивных)
+    _pre_cols = set(df.columns.tolist())
+    # Промежуточные имена → финальные (для числовых/дат полей)
+    _inter_to_final = {
+        'P': 'Plan_N', 'F': 'Fact_N', 'PT': 'Plan_T', 'FT': 'Fact_T',
+        'S': 'Начало', 'E': 'Конец', 'FS': 'Факт_Начало', 'FE': 'Факт_Конец',
+    }
+    source_columns = set(_pre_cols)
+    for inter, final in _inter_to_final.items():
+        if inter in _pre_cols:
+            source_columns.add(final)
+
     df['Plan_N'] = fast_parse_series(df['P']) if 'P' in df.columns else 0.0
     df['Fact_N'] = fast_parse_series(df['F']) if 'F' in df.columns else 0.0
     df['Plan_T'] = fast_parse_series(df['PT']) if 'PT' in df.columns else 0.0
@@ -166,6 +178,27 @@ def process_data(df_raw):
         else:
             df[col] = pd.NaT
 
+    # --- Каскадные даты ---
+    DATE_CUTOFF = pd.Timestamp('2015-01-01')
+
+    # Отсечка мусора: всё < 2015 → NaT
+    for col in ['Начало', 'Конец', 'Факт_Начало', 'Факт_Конец']:
+        if col in df.columns:
+            mask_junk = df[col].notna() & (df[col] < DATE_CUTOFF)
+            df.loc[mask_junk, col] = pd.NaT
+
+    # Каскад: факт → план
+    df['Дата_Начало'] = df['Факт_Начало'].where(df['Факт_Начало'].notna(), df['Начало'])
+    df['Дата_Конец'] = df['Факт_Конец'].where(df['Факт_Конец'].notna(), df['Конец'])
+    df['Дата_Месяц'] = df['Дата_Начало']
+
+    # Источник дат
+    df['Источник_Дат'] = 'NONE'
+    mask_fact = df['Факт_Начало'].notna()
+    mask_plan = (~mask_fact) & df['Начало'].notna()
+    df.loc[mask_fact, 'Источник_Дат'] = 'FACT'
+    df.loc[mask_plan, 'Источник_Дат'] = 'PLAN'
+
     try:
         if df['Конец'].notna().any() and df['Начало'].notna().any():
             df['План_Длит'] = (df['Конец'] - df['Начало']).dt.days.astype(float)
@@ -175,7 +208,7 @@ def process_data(df_raw):
         if df['Факт_Конец'].notna().any() and df['Факт_Начало'].notna().any():
             fact_start = df['Факт_Начало']
             fact_end = df['Факт_Конец']
-            mask_valid = (fact_end.dt.year > 1971) & (fact_start.dt.year > 1971)
+            mask_valid = fact_end.notna() & fact_start.notna()
             df['Факт_Длит'] = np.nan
             df.loc[mask_valid, 'Факт_Длит'] = (fact_end[mask_valid] - fact_start[mask_valid]).dt.days.astype(float)
         else:
@@ -331,4 +364,5 @@ def process_data(df_raw):
     df['Data_Completeness'] = df.apply(lambda row: calculate_data_completeness(row, required_fields), axis=1)
 
     df.attrs['export_format'] = export_format
+    df.attrs['source_columns'] = source_columns
     return df

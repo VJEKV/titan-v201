@@ -33,10 +33,13 @@ def _is_empty(val) -> bool:
     return str_val in EMPTY_VALUES or len(str_val) == 0
 
 
-def _find_columns_to_check(df_columns):
-    """Найти колонки для проверки."""
+def _find_columns_to_check(df_columns, source_columns=None):
+    """Найти колонки для проверки (только реально присутствующие в файле)."""
     result = {}
     for col in df_columns:
+        # Пропускаем колонки, которых не было в исходном файле
+        if source_columns and col not in source_columns:
+            continue
         if col in FIELD_MAPPING:
             result[col] = FIELD_MAPPING[col]
         elif col in RENAMED_TO_ORIGINAL:
@@ -72,7 +75,8 @@ async def get_quality(
     df_f = apply_hierarchy_filters(df, hierarchy)
     df_f = apply_extra_filters(df_f, extra)
 
-    columns_map = _find_columns_to_check(df_f.columns.tolist())
+    source_columns = df.attrs.get('source_columns', None)
+    columns_map = _find_columns_to_check(df_f.columns.tolist(), source_columns)
     total_rows = len(df_f)
 
     if not columns_map:
@@ -99,6 +103,24 @@ async def get_quality(
     fill_rate = ((total_cells - total_empty) / total_cells * 100) if total_cells > 0 else 0
     problem_cols = len([f for f in fields if f['pct'] > 30])
 
+    # Покрытие датами — 4 взаимоисключающие категории × 2 типа дат
+    date_stats = None
+    if total_rows > 0:
+        hf_start = df_f['Факт_Начало'].notna() if 'Факт_Начало' in df_f.columns else pd.Series(False, index=df_f.index)
+        hp_start = df_f['Начало'].notna() if 'Начало' in df_f.columns else pd.Series(False, index=df_f.index)
+        hf_end = df_f['Факт_Конец'].notna() if 'Факт_Конец' in df_f.columns else pd.Series(False, index=df_f.index)
+        hp_end = df_f['Конец'].notna() if 'Конец' in df_f.columns else pd.Series(False, index=df_f.index)
+        date_stats = {
+            'start_both': int((hf_start & hp_start).sum()),
+            'start_fact_only': int((hf_start & ~hp_start).sum()),
+            'start_plan_only': int((~hf_start & hp_start).sum()),
+            'start_none': int((~hf_start & ~hp_start).sum()),
+            'end_both': int((hf_end & hp_end).sum()),
+            'end_fact_only': int((hf_end & ~hp_end).sum()),
+            'end_plan_only': int((~hf_end & hp_end).sum()),
+            'end_none': int((~hf_end & ~hp_end).sum()),
+        }
+
     return {
         "fields": fields,
         "kpi": {
@@ -106,5 +128,6 @@ async def get_quality(
             "total_fields": len(columns_map),
             "problem_cols": problem_cols,
             "fill_rate": round(fill_rate, 1),
-        }
+        },
+        "date_stats": date_stats,
     }

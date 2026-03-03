@@ -8,6 +8,7 @@ import KpiRow from '../components/KpiRow';
 import SectionTitle from '../components/SectionTitle';
 import Card from '../components/Card';
 import ChartSettings, { useChartSettings } from '../components/ChartSettings';
+import DateFootnote from '../components/DateFootnote';
 
 export default function Quality() {
   const { sessionId, filters, thresholds } = useFilters();
@@ -80,6 +81,7 @@ export default function Quality() {
 
   return (
     <div style={{ fontFamily }}>
+      <DateFootnote />
       <SectionTitle sub="Проверка полноты заполнения полей из справочника">
         Качество данных
       </SectionTitle>
@@ -90,6 +92,65 @@ export default function Quality() {
         <KpiCard title="ПРОБЛЕМНЫХ (>30%)" value={kpi.problem_cols} color={kpi.problem_cols > 0 ? C.danger : C.success} />
         <KpiCard title="ЗАПОЛНЕННОСТЬ" value={`${kpi.fill_rate}%`} color={kpi.fill_rate > 80 ? C.success : C.warning} />
       </KpiRow>
+
+      {data.date_stats && (() => {
+        const ds = data.date_stats;
+        const t = kpi.total_rows || 1;
+        const pct = v => (v / t * 100).toFixed(1);
+        const fmtN = v => Number(v).toLocaleString('ru-RU');
+        const cats = [
+          { label: 'Факт + План', color: C.success },
+          { label: 'Только факт', color: '#ffffff' },
+          { label: 'Только план', color: C.warning },
+          { label: 'Нет дат', color: C.danger },
+        ];
+        const dRows = [
+          { label: 'Начало', vals: [ds.start_both, ds.start_fact_only, ds.start_plan_only, ds.start_none] },
+          { label: 'Конец', vals: [ds.end_both, ds.end_fact_only, ds.end_plan_only, ds.end_none] },
+        ];
+        const thS = { padding: '0 10px 6px', fontSize: 10, fontWeight: 600, textAlign: 'center', whiteSpace: 'nowrap' };
+        const tdS = { padding: '4px 10px', textAlign: 'center', fontSize: 12 };
+        const barH = 4;
+        return (
+          <Card title="Покрытие датами в заказах">
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={{ ...thS, textAlign: 'left', minWidth: 70 }}></th>
+                  {cats.map((c, i) => (
+                    <th key={i} style={{ ...thS, color: c.color }}>{c.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dRows.map((row, ri) => (
+                  <tr key={ri}>
+                    <td style={{ ...tdS, textAlign: 'left', color: C.dim, fontSize: 11, fontWeight: 500 }}>{row.label}</td>
+                    {row.vals.map((v, ci) => {
+                      const p = pct(v);
+                      return (
+                        <td key={ci} style={tdS}>
+                          <div style={{ fontWeight: 600, color: cats[ci].color }}>{fmtN(v)}</div>
+                          <div style={{
+                            width: '100%', height: barH, borderRadius: barH / 2,
+                            background: C.border, marginTop: 3, overflow: 'hidden',
+                          }}>
+                            <div style={{
+                              width: `${p}%`, height: '100%', borderRadius: barH / 2,
+                              background: cats[ci].color, opacity: 0.7,
+                            }} />
+                          </div>
+                          <div style={{ fontSize: 10, color: C.dim, marginTop: 2 }}>{p}%</div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        );
+      })()}
 
       {/* График */}
       {fieldsWithEmpty.length > 0 && (

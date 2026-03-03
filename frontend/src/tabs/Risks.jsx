@@ -9,6 +9,7 @@ import MethodCard from '../components/MethodCard';
 import ProgressBar from '../components/ProgressBar';
 import Badge from '../components/Badge';
 import Card from '../components/Card';
+import DateFootnote from '../components/DateFootnote';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "0";
@@ -169,6 +170,7 @@ export default function Risks({ setActiveMethod, setActiveTab }) {
 
   return (
     <div>
+      <DateFootnote />
       <SectionTitle sub="6 аналитических методов — непрерывный скоринг v2 (шкала 0-10)">
         Риск-скоринг: Приоритеты аудита
       </SectionTitle>

@@ -72,7 +72,7 @@ export default function Sidebar() {
           {/* Даты */}
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase', marginBottom: 6 }}>
-              Период (план. начало)
+              Период (факт / план)
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <div style={{ flex: 1 }}>

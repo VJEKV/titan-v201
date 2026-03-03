@@ -49,21 +49,30 @@ def apply_extra_filters(df, extra_filters):
         if values and col in df.columns:
             mask &= df[col].isin(values)
 
-    # Фильтр по датам (Начало — план. начало заказа)
+    # Фильтр по каскадным датам (пересечение с периодом)
+    # Заказы без дат (NONE) всегда проходят
     date_from = extra_filters.get('date_from', '')
     date_to = extra_filters.get('date_to', '')
-    if (date_from or date_to) and 'Начало' in df.columns:
-        dates = pd.to_datetime(df['Начало'], errors='coerce')
-        if date_from:
-            try:
-                mask &= dates >= pd.Timestamp(date_from)
-            except Exception:
-                pass
-        if date_to:
-            try:
-                mask &= dates <= pd.Timestamp(date_to)
-            except Exception:
-                pass
+    if date_from:
+        try:
+            ts = pd.Timestamp(date_from)
+            if 'Дата_Конец' in df.columns:
+                has_end = df['Дата_Конец'].notna()
+                mask &= ~has_end | (df['Дата_Конец'] >= ts)
+            elif 'Начало' in df.columns:
+                mask &= pd.to_datetime(df['Начало'], errors='coerce') >= ts
+        except Exception:
+            pass
+    if date_to:
+        try:
+            ts = pd.Timestamp(date_to)
+            if 'Дата_Начало' in df.columns:
+                has_start = df['Дата_Начало'].notna()
+                mask &= ~has_start | (df['Дата_Начало'] <= ts)
+            elif 'Начало' in df.columns:
+                mask &= pd.to_datetime(df['Начало'], errors='coerce') <= ts
+        except Exception:
+            pass
 
     return df[mask]
 

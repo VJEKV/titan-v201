@@ -222,6 +222,11 @@ def apply_risk_scoring_v2(df, agg, thresholds):
         else:
             score = pd.Series(0.0, index=df.index)
 
+        # C1-M9: снижаем балл ×0.7 если даты только плановые
+        if method_name == "C1-M9: Незавершённые работы" and 'Источник_Дат' in df.columns:
+            is_plan = df['Источник_Дат'] == 'PLAN'
+            score = score.where(~is_plan, score * 0.7)
+
         col_score = f"Score_{method_name}"
         col_flag = f"S_{method_name}"
         df[col_score] = score.round(2)

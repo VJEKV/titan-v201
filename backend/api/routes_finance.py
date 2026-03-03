@@ -102,9 +102,9 @@ async def get_finance(
 
     result = {}
 
-    # 1. Помесячные данные
+    # 1. Помесячные данные (каскадная дата)
     date_col = None
-    for col in ['Начало', 'Конец', 'Факт_Начало']:
+    for col in ['Дата_Месяц', 'Начало', 'Конец', 'Факт_Начало']:
         if col in df_f.columns and df_f[col].notna().any():
             date_col = col
             break

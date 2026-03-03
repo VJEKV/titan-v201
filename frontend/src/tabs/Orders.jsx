@@ -8,6 +8,7 @@ import SectionTitle from '../components/SectionTitle';
 import Badge from '../components/Badge';
 import Card from '../components/Card';
 import TagSelect from '../components/TagSelect';
+import DateFootnote from '../components/DateFootnote';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "—";
@@ -152,6 +153,8 @@ export default function Orders({ activeMethod, setActiveMethod }) {
     { key: 'Plan_N', label: 'План ₽', width: 90, align: 'right', fmt: fmtNum },
     { key: 'Fact_N', label: 'Факт ₽', width: 90, align: 'right', fmt: fmtNum },
     { key: 'Δ_Сумма', label: 'Δ ₽', width: 80, align: 'right', fmt: v => v > 0 ? `+${fmtShort(v)}` : fmtShort(v) },
+    { key: 'Дата_Начало', label: 'Дата нач.', width: 90 },
+    { key: 'Дата_Конец', label: 'Дата кон.', width: 90 },
     { key: 'Risk_Sum', label: 'Риск', width: 60, align: 'center' },
     { key: 'methods', label: 'Методы', width: 140 },
   ];
@@ -162,6 +165,7 @@ export default function Orders({ activeMethod, setActiveMethod }) {
 
   return (
     <div>
+      <DateFootnote />
       <SectionTitle sub="Детализация сроков, отклонений и сработавших методов риска">
         Просмотр заказов
       </SectionTitle>
@@ -337,6 +341,12 @@ export default function Orders({ activeMethod, setActiveMethod }) {
                     if (col.key === 'Δ_Сумма') {
                       const clr = val > 0 ? C.danger : val < 0 ? C.success : C.muted;
                       return <td key={col.key} style={{ textAlign: 'right', color: clr, fontSize: 13 }}>{display}</td>;
+                    }
+                    if (col.key === 'Дата_Начало' || col.key === 'Дата_Конец') {
+                      const src = row['Источник_Дат'];
+                      const clr = src === 'FACT' ? '#ffffff' : src === 'PLAN' ? C.warning : C.danger;
+                      const txt = val ? val + (src === 'PLAN' ? ' \u2022' : '') : '\u2014';
+                      return <td key={col.key} style={{ color: clr, fontSize: 12 }}>{txt}</td>;
                     }
 
                     return (

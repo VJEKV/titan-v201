@@ -205,8 +205,8 @@ export default function Equipment() {
     { key: '', label: '', sortable: false },
   ];
 
-  /** Цвета ABC для DonutWithLegend */
-  const abcColors = csAbc.paletteColors;
+  /** Цвета ABC для DonutWithLegend — из справочника критичности */
+  const abcColors = abc_data.map(d => ABC_COLORS[d.abc] || C.muted);
 
   /** Рендер графика классов по типу */
   const renderClassesChart = () => {
@@ -316,11 +316,11 @@ export default function Equipment() {
       {/* KPI */}
       <KpiRow>
         <KpiCard title="ВСЕГО ЕО" value={fmtNum(kpi.total_eo)} />
-        <KpiCard title="КЛАСС A" value={fmtNum(kpi.abc_a)} color={C.danger} />
-        <KpiCard title="КЛАСС B" value={fmtNum(kpi.abc_b)} color={C.warning} />
-        <KpiCard title="КЛАСС C" value={fmtNum(kpi.abc_c)} color={C.success} />
+        <KpiCard title="ОСОБО КРИТ." value={fmtNum(kpi.abc_osob)} color="#9f1239" />
+        <KpiCard title="ВЫСОКО КРИТ." value={fmtNum(kpi.abc_vysok)} color={C.danger} />
+        <KpiCard title="НИЗКОЙ КРИТ." value={fmtNum(kpi.abc_low)} color={C.accent} />
+        <KpiCard title="НЕ КРИТИЧНО" value={fmtNum(kpi.abc_none)} color={C.success} />
         <KpiCard title="БЕЗ ЕО (ЗАКАЗОВ)" value={fmtNum(kpi.no_eo_orders)} color={C.dim} />
-        <KpiCard title="СРЕДН. ЗАКАЗОВ/ЕО" value={kpi.avg_orders_per_eo} />
       </KpiRow>
 
 {/* ABC-распределение */}
@@ -435,7 +435,7 @@ export default function Equipment() {
                           {isExpanded ? '▼ ' : '▶ '}{r.name}
                         </td>
                         <td style={{ color: C.muted, fontSize: 12, padding: '6px 10px' }}>{r.eo}</td>
-                        <td style={{ color: r.abc === 'A' || r.abc === 'Высококритичное' ? C.danger : r.abc === 'B' || r.abc === 'Средней критичности' ? C.warning : r.abc === 'C' ? C.success : C.muted, fontSize: 12, fontWeight: 600, padding: '6px 10px', textAlign: 'center' }}>{r.abc || '—'}</td>
+                        <td style={{ color: ABC_COLORS[r.abc] || C.muted, fontSize: 12, fontWeight: 600, padding: '6px 10px', textAlign: 'center' }}>{r.abc || '—'}</td>
                         <td style={{ color: C.muted, fontSize: 12, padding: '6px 10px' }}>{r.class_name}</td>
                         <td style={{ color: C.text, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{r.n_orders}</td>
                         <td style={{ color: C.text, fontSize: 12, textAlign: 'right', padding: '6px 10px' }}>{fmtShort(r.plan)} ₽</td>
@@ -460,19 +460,27 @@ export default function Equipment() {
                               ) : expandedOrders.length === 0 ? (
                                 <p style={{ color: C.muted, fontSize: 12 }}>Нет заказов</p>
                               ) : (
+                                <>
+                                <div style={{ fontSize: 10, color: C.dim, marginBottom: 6 }}>
+                                  <span style={{ color: '#ffffff' }}>белый</span> — факт, <span style={{ color: C.warning }}>жёлтый •</span> — план, <span style={{ color: C.danger }}>красный</span> — нет
+                                </div>
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                   <thead>
                                     <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                      {['Заказ', 'Дата', 'Вид работ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽'].map(h => (
+                                      {['Заказ', 'Дата нач.', 'Дата кон.', 'Вид работ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽'].map(h => (
                                         <th key={h} style={{ color: C.dim, fontSize: 10, padding: '4px 8px', textAlign: 'left', fontWeight: 600 }}>{h}</th>
                                       ))}
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {expandedOrders.map((ord, j) => (
+                                    {expandedOrders.map((ord, j) => {
+                                      const dClr = ord.date_source === 'FACT' ? '#ffffff' : ord.date_source === 'PLAN' ? C.warning : C.danger;
+                                      const pm = ord.date_source === 'PLAN' ? ' \u2022' : '';
+                                      return (
                                       <tr key={j} style={{ borderBottom: `1px solid ${C.border}22` }}>
                                         <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>{ord.id}</td>
-                                        <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date}</td>
+                                        <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + pm : '—'}</td>
+                                        <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_end ? ord.date_end + pm : '—'}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px' }}>{ord.vid}</td>
                                         <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px' }}>{ord.stat}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
@@ -480,9 +488,11 @@ export default function Equipment() {
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.plan)}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.fact)}</td>
                                       </tr>
-                                    ))}
+                                      );
+                                    })}
                                   </tbody>
                                 </table>
+                                </>
                               )}
                             </div>
                           </td>
@@ -666,19 +676,27 @@ export default function Equipment() {
                               ) : freqExpandedOrders.length === 0 ? (
                                 <p style={{ color: C.muted, fontSize: 12 }}>Нет заказов</p>
                               ) : (
+                                <>
+                                <div style={{ fontSize: 10, color: C.dim, marginBottom: 6 }}>
+                                  <span style={{ color: '#ffffff' }}>белый</span> — факт, <span style={{ color: C.warning }}>жёлтый •</span> — план, <span style={{ color: C.danger }}>красный</span> — нет
+                                </div>
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                   <thead>
                                     <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                      {['Заказ', 'Дата', 'Вид работ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽'].map(h => (
+                                      {['Заказ', 'Дата нач.', 'Дата кон.', 'Вид работ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽'].map(h => (
                                         <th key={h} style={{ color: C.dim, fontSize: 10, padding: '4px 8px', textAlign: 'left', fontWeight: 600 }}>{h}</th>
                                       ))}
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {freqExpandedOrders.map((ord, j) => (
+                                    {freqExpandedOrders.map((ord, j) => {
+                                      const dClr = ord.date_source === 'FACT' ? '#ffffff' : ord.date_source === 'PLAN' ? C.warning : C.danger;
+                                      const pm = ord.date_source === 'PLAN' ? ' \u2022' : '';
+                                      return (
                                       <tr key={j} style={{ borderBottom: `1px solid ${C.border}22` }}>
                                         <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>{ord.id}</td>
-                                        <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date}</td>
+                                        <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + pm : '—'}</td>
+                                        <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_end ? ord.date_end + pm : '—'}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px' }}>{ord.vid}</td>
                                         <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px' }}>{ord.stat}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
@@ -686,9 +704,11 @@ export default function Equipment() {
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.plan)}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.fact)}</td>
                                       </tr>
-                                    ))}
+                                      );
+                                    })}
                                   </tbody>
                                 </table>
+                                </>
                               )}
                             </div>
                           </td>

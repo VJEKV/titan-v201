@@ -10,6 +10,7 @@ import HeatmapTable from '../components/HeatmapTable';
 import Card from '../components/Card';
 import ChartSettings, { useChartSettings } from '../components/ChartSettings';
 import DonutWithLegend from '../components/DonutWithLegend';
+import DateFootnote from '../components/DateFootnote';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "0";
@@ -123,6 +124,7 @@ export default function Workplaces() {
 
   return (
     <div style={{ fontFamily }}>
+      <DateFootnote />
       <SectionTitle sub="Кто сколько потратил, перерасход, количество заказов и ЕО">Аналитика по рабочим местам</SectionTitle>
 
       <KpiRow>
