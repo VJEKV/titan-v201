@@ -1,46 +1,54 @@
 @echo off
+chcp 65001 >nul
 cd /d "%~dp0"
 echo ========================================
-echo   TITAN Update from GitHub
+echo   TITAN — Обновление с GitHub
 echo ========================================
 echo.
 
-taskkill /f /im python.exe >nul 2>&1
-
-:: Save .env before update
+:: Сохранить .env перед обновлением
 if exist titan-v200\backend\.env copy /y titan-v200\backend\.env _env_backup >nul
 
-echo Downloading...
-powershell -Command "Invoke-WebRequest -Uri 'https://github.com/VJEKV/titan-v201/archive/refs/heads/main.zip' -OutFile 'update.zip'"
+echo Скачивание обновления...
+curl -L -o update.zip "https://github.com/VJEKV/titan-v201/archive/refs/heads/main.zip"
 if not exist update.zip (
-    echo ERROR: Download failed
+    echo ОШИБКА: не удалось скачать обновление
     pause
     exit /b
 )
 
-echo Extracting...
+echo Распаковка...
 if exist _temp rd /s /q _temp
-powershell -Command "Expand-Archive -Path 'update.zip' -DestinationPath '_temp' -Force"
+tar -xf update.zip -C . 2>nul
+if not exist titan-v201-main (
+    mkdir _temp
+    powershell -Command "Expand-Archive -Path 'update.zip' -DestinationPath '_temp' -Force"
+    set "SRC=_temp\titan-v201-main"
+) else (
+    set "SRC=titan-v201-main"
+)
 
-echo Updating...
+echo Обновление файлов...
 if exist titan-v200\backend rd /s /q titan-v200\backend
 if exist titan-v200\frontend rd /s /q titan-v200\frontend
 
-xcopy /s /e /y /q _temp\titan-v201-main\backend titan-v200\backend\
-xcopy /s /e /y /q _temp\titan-v201-main\frontend titan-v200\frontend\
+xcopy /s /e /y /q %SRC%\backend titan-v200\backend\
+xcopy /s /e /y /q %SRC%\frontend titan-v200\frontend\
 
-:: Restore .env after update
+:: Восстановить .env после обновления
 if exist _env_backup (
     copy /y _env_backup titan-v200\backend\.env >nul
     del _env_backup
 )
 
-rd /s /q _temp
+:: Очистка
+if exist _temp rd /s /q _temp
+if exist titan-v201-main rd /s /q titan-v201-main
 del update.zip
 
 echo.
 echo ========================================
-echo   Done! Run START.bat to launch.
+echo   Готово! Запустите START.bat
 echo ========================================
 pause
 exit

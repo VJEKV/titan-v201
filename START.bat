@@ -1,20 +1,13 @@
 @echo off
-cd /d "%~dp0"
+chcp 65001 >nul
+cd /d "%~dp0titan-v200\backend"
 
-:: Create hidden launcher
-echo Set WshShell = CreateObject("WScript.Shell") > "%~dp0_run.vbs"
-echo WshShell.CurrentDirectory = "%~dp0titan-v200\backend" >> "%~dp0_run.vbs"
-echo WshShell.Run """%~dp0python\python.exe"" -m uvicorn main:app --host 127.0.0.1 --port 8000", 0, False >> "%~dp0_run.vbs"
+echo Запуск TITAN Аудит ТОРО...
+start "" /min "%~dp0python\python.exe" -m uvicorn main:app --host 127.0.0.1 --port 8000
 
-:: Run hidden
-wscript "%~dp0_run.vbs"
-
-:: Wait for server
+:: Ожидание запуска сервера
 ping -n 4 127.0.0.1 >nul
 
-:: Open browser
+:: Открыть браузер
 start http://127.0.0.1:8000
-
-:: Cleanup and exit
-del "%~dp0_run.vbs"
 exit
