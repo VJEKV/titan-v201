@@ -35,10 +35,12 @@ if exist titan-v200\frontend rd /s /q titan-v200\frontend
 xcopy /s /e /y /q %SRC%\backend titan-v200\backend\
 xcopy /s /e /y /q %SRC%\frontend titan-v200\frontend\
 
-:: Обновить корневые файлы (.bat, .md и др.)
-if exist %SRC%\START.bat copy /y %SRC%\START.bat titan-v200\START.bat >nul
-if exist %SRC%\STOP.bat copy /y %SRC%\STOP.bat titan-v200\STOP.bat >nul
-if exist %SRC%\UPDATE.bat copy /y %SRC%\UPDATE.bat titan-v200\UPDATE.bat >nul
+:: Обновить .bat на корневом уровне флешки (те, что запускает пользователь)
+if exist %SRC%\START.bat copy /y %SRC%\START.bat START.bat >nul
+if exist %SRC%\STOP.bat copy /y %SRC%\STOP.bat STOP.bat >nul
+if exist %SRC%\UPDATE.bat copy /y %SRC%\UPDATE.bat UPDATE.bat >nul
+
+:: Обновить .md и .bat внутри titan-v200 (для git)
 if exist %SRC%\CLAUDE.md copy /y %SRC%\CLAUDE.md titan-v200\CLAUDE.md >nul
 if exist %SRC%\PROJECT_DESCRIPTION.md copy /y %SRC%\PROJECT_DESCRIPTION.md titan-v200\PROJECT_DESCRIPTION.md >nul
 
