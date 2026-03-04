@@ -218,6 +218,25 @@ async def get_planners(
 
         user_scoring.sort(key=lambda x: x['score'], reverse=True)
 
+    # Рабочие места (РМ)
+    rm_data = []
+    if 'РМ' in df_f.columns:
+        rm_stats = df_f.groupby('РМ').agg(
+            count=('ID', 'count'), fact=('Fact_N', 'sum'), plan=('Plan_N', 'sum')
+        ).reset_index()
+        rm_stats['dev'] = rm_stats['fact'] - rm_stats['plan']
+        rm_stats = rm_stats[rm_stats['РМ'] != 'Н/Д']
+        rm_stats = rm_stats.sort_values('dev', ascending=False)
+
+        for _, r in rm_stats.iterrows():
+            rm_data.append({
+                "name": str(r['РМ']),
+                "count": int(r['count']),
+                "fact": _sf(r['fact']),
+                "plan": _sf(r['plan']),
+                "dev": _sf(r['dev'])
+            })
+
     # Heatmap плановик × метод
     heatmap = []
     if 'INGRP' in df_f.columns:
@@ -241,6 +260,7 @@ async def get_planners(
     return {
         "ingrp_data": ingrp_data,
         "users_data": users_data,
+        "rm_data": rm_data,
         "user_scoring": user_scoring,
         "heatmap": heatmap,
         "kpi": {

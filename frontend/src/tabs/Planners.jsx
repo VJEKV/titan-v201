@@ -63,6 +63,14 @@ export default function Planners() {
   const [userLoading, setUserLoading] = useState(false);
   const [userSort, setUserSort] = useState({ col: 'date_start', dir: 'desc' });
 
+  // Аккордеон РМ
+  const [rmExpanded, setRmExpanded] = useState(null);
+  const [rmOrders, setRmOrders] = useState([]);
+  const [rmTotal, setRmTotal] = useState(0);
+  const [rmPage, setRmPage] = useState(1);
+  const [rmLoading, setRmLoading] = useState(false);
+  const [rmSort, setRmSort] = useState({ col: 'date_start', dir: 'desc' });
+
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
@@ -70,6 +78,7 @@ export default function Planners() {
       .then(setData).catch(() => {}).finally(() => setLoading(false));
     setIngrpExpanded(null); setIngrpOrders([]); setIngrpPage(1); setIngrpSort({ col: 'date_start', dir: 'desc' });
     setUserExpanded(null); setUserOrders([]); setUserPage(1); setUserSort({ col: 'date_start', dir: 'desc' });
+    setRmExpanded(null); setRmOrders([]); setRmPage(1); setRmSort({ col: 'date_start', dir: 'desc' });
   }, [sessionId, filters, thresholds]);
 
   const fetchIngrpOrders = (name, page, sort = ingrpSort) => {
@@ -125,10 +134,37 @@ export default function Planners() {
     }).catch(() => alert('Ошибка при выгрузке Excel'));
   };
 
+  // --- РМ аккордеон ---
+  const fetchRmOrders = (name, page, sort = rmSort) => {
+    setRmLoading(true);
+    apiGet('/api/workplaces/orders', {
+      session_id: sessionId, filters, thresholds,
+      rm: name, page, page_size: 20,
+      sort_by: sort.col, sort_dir: sort.dir,
+    })
+      .then(res => { setRmOrders(res.orders || []); setRmTotal(res.total || 0); })
+      .catch(() => { setRmOrders([]); setRmTotal(0); })
+      .finally(() => setRmLoading(false));
+  };
+  const toggleRmExpand = (name) => {
+    if (rmExpanded === name) { setRmExpanded(null); setRmOrders([]); setRmTotal(0); setRmPage(1); return; }
+    const s = { col: 'date_start', dir: 'desc' }; setRmSort(s);
+    setRmExpanded(name); setRmPage(1); fetchRmOrders(name, 1, s);
+  };
+  const handleRmPage = (p) => { setRmPage(p); fetchRmOrders(rmExpanded, p); };
+  const handleRmSortChange = (col, dir) => {
+    const s = { col, dir }; setRmSort(s); setRmPage(1); fetchRmOrders(rmExpanded, 1, s);
+  };
+  const exportRmExcel = (name) => {
+    apiDownload('/api/export/orders_excel', {
+      session_id: sessionId, filters, thresholds, group_by: 'rm', group_value: name,
+    }).catch(() => alert('Ошибка при выгрузке Excel'));
+  };
+
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;
 
-  const { kpi, ingrp_data, users_data, user_scoring } = data;
+  const { kpi, ingrp_data, users_data, rm_data, user_scoring } = data;
   const sortedIngrp = [...ingrp_data].sort((a, b) => b.count - a.count);
   const fsz = csDonut.fontSizes;
   const fontFamily = csDonut.font;
@@ -240,9 +276,21 @@ export default function Planners() {
         </Card>
       )}
 
+      {/* Рабочие места */}
+      {rm_data && rm_data.length > 0 && (
+        <Card title="3. Рабочие места (РМ)">
+          <HeatmapTable data={rm_data} expandable
+            expandedName={rmExpanded} onToggleExpand={toggleRmExpand}
+            expandedOrders={rmOrders} expandedTotal={rmTotal}
+            expandedLoading={rmLoading} expandedPage={rmPage}
+            onPageChange={handleRmPage} onExportExcel={exportRmExcel}
+            onInnerSortChange={handleRmSortChange} />
+        </Card>
+      )}
+
       {/* Скоринг пользователей */}
       {user_scoring && user_scoring.length > 0 && (
-        <Card title="3. Скоринг пользователей: незаполненные поля" borderColor={C.warning}>
+        <Card title="4. Скоринг пользователей: незаполненные поля" borderColor={C.warning}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
             <div style={{ fontSize: 12, color: C.muted, flex: 1 }}>
               Показаны пользователи с наибольшим процентом незаполненных полей в заказах.

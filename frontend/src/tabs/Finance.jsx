@@ -76,6 +76,14 @@ export default function Finance() {
   const [tmLoading, setTmLoading] = useState(false);
   const [tmSort, setTmSort] = useState({ col: 'date_start', dir: 'desc' });
 
+  // Аккордеон РМ
+  const [rmExpanded, setRmExpanded] = useState(null);
+  const [rmOrders, setRmOrders] = useState([]);
+  const [rmTotal, setRmTotal] = useState(0);
+  const [rmPage, setRmPage] = useState(1);
+  const [rmLoading, setRmLoading] = useState(false);
+  const [rmSort, setRmSort] = useState({ col: 'date_start', dir: 'desc' });
+
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
@@ -86,6 +94,7 @@ export default function Finance() {
     // Сбросить аккордеон при смене фильтров
     setCehExpanded(null); setCehOrders([]); setCehPage(1); setCehSort({ col: 'date_start', dir: 'desc' });
     setTmExpanded(null); setTmOrders([]); setTmPage(1); setTmSort({ col: 'date_start', dir: 'desc' });
+    setRmExpanded(null); setRmOrders([]); setRmPage(1); setRmSort({ col: 'date_start', dir: 'desc' });
   }, [sessionId, filters, thresholds]);
 
   // --- Функции аккордеона ЦЕХ ---
@@ -143,10 +152,37 @@ export default function Finance() {
     }).catch(() => alert('Ошибка при выгрузке Excel'));
   };
 
+  // --- РМ аккордеон ---
+  const fetchRmOrders = (name, page, sort = rmSort) => {
+    setRmLoading(true);
+    apiGet('/api/finance/orders', {
+      session_id: sessionId, filters, thresholds,
+      group_by: 'rm', group_value: name, page, page_size: 20,
+      sort_by: sort.col, sort_dir: sort.dir,
+    })
+      .then(res => { setRmOrders(res.orders || []); setRmTotal(res.total || 0); })
+      .catch(() => { setRmOrders([]); setRmTotal(0); })
+      .finally(() => setRmLoading(false));
+  };
+  const toggleRmExpand = (name) => {
+    if (rmExpanded === name) { setRmExpanded(null); setRmOrders([]); setRmTotal(0); setRmPage(1); return; }
+    const s = { col: 'date_start', dir: 'desc' }; setRmSort(s);
+    setRmExpanded(name); setRmPage(1); fetchRmOrders(name, 1, s);
+  };
+  const handleRmPage = (p) => { setRmPage(p); fetchRmOrders(rmExpanded, p); };
+  const handleRmSortChange = (col, dir) => {
+    const s = { col, dir }; setRmSort(s); setRmPage(1); fetchRmOrders(rmExpanded, 1, s);
+  };
+  const exportRmExcel = (name) => {
+    apiDownload('/api/export/orders_excel', {
+      session_id: sessionId, filters, thresholds, group_by: 'rm', group_value: name,
+    }).catch(() => alert('Ошибка при выгрузке Excel'));
+  };
+
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;
 
-  const { kpi, monthly: rawMonthly, ceh_data, tm_data, pareto, pareto_orders, pareto_stats } = data;
+  const { kpi, monthly: rawMonthly, ceh_data, tm_data, rm_data, pareto, pareto_orders, pareto_stats } = data;
   const monthly = dedupeByLabel(rawMonthly || []);
   const fs = csMain.fontSizes;
   const fontFamily = csMain.font;
@@ -313,9 +349,22 @@ export default function Finance() {
         </Card>
       )}
 
-      {/* 4. Парето 80/20 */}
+      {/* 3.5 РМ */}
+      {rm_data && rm_data.length > 0 && (
+        <Card title="4. Отклонения по рабочим местам (РМ)">
+          <ExcelBtn tableData={rm_data} title="Отклонения_по_РМ" />
+          <HeatmapTable data={rm_data} expandable
+            expandedName={rmExpanded} onToggleExpand={toggleRmExpand}
+            expandedOrders={rmOrders} expandedTotal={rmTotal}
+            expandedLoading={rmLoading} expandedPage={rmPage}
+            onPageChange={handleRmPage} onExportExcel={exportRmExcel}
+            onInnerSortChange={handleRmSortChange} />
+        </Card>
+      )}
+
+      {/* 5. Парето 80/20 */}
       {pareto.length > 0 && (
-        <Card title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>4. Парето: правило 80/20 — концентрация затрат <ChartSettings chartId="fin-pareto" chartTypes={[{value:'area',label:'Область'},{value:'line',label:'Линия'}]} currentChartType={paretoChartType} onChartTypeChange={setParetoChartType} /></span>}>
+        <Card title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>5. Парето: правило 80/20 — концентрация затрат <ChartSettings chartId="fin-pareto" chartTypes={[{value:'area',label:'Область'},{value:'line',label:'Линия'}]} currentChartType={paretoChartType} onChartTypeChange={setParetoChartType} /></span>}>
           {pareto_stats && (
             <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 8, background: `${C.danger}10`, borderLeft: `4px solid ${C.danger}` }}>
               <span style={{ color: C.text, fontSize: 14 }}>

@@ -3,7 +3,7 @@ chcp 65001 >nul
 cd /d "%~dp0titan-v200\backend"
 
 echo Запуск TITAN Аудит ТОРО...
-start "" /min "%~dp0python\python.exe" -m uvicorn main:app --host 127.0.0.1 --port 8000
+start "" "%~dp0python\pythonw.exe" -m uvicorn main:app --host 127.0.0.1 --port 8000
 
 :: Ожидание запуска сервера
 ping -n 4 127.0.0.1 >nul

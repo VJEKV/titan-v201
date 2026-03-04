@@ -221,6 +221,26 @@ async def get_finance(
             })
     result['tm_data'] = tm_data
 
+    # 3.5 Рабочие места (РМ)
+    rm_data = []
+    if 'РМ' in df_f.columns:
+        rm_stats = df_f.groupby('РМ').agg(
+            count=('ID', 'count'), fact=('Fact_N', 'sum'), plan=('Plan_N', 'sum')
+        ).reset_index()
+        rm_stats['dev'] = rm_stats['fact'] - rm_stats['plan']
+        rm_stats = rm_stats[rm_stats['РМ'] != 'Н/Д']
+        rm_stats = rm_stats.sort_values('dev', ascending=False)
+
+        for _, r in rm_stats.iterrows():
+            rm_data.append({
+                "name": str(r['РМ']),
+                "plan": _sf(r['plan']),
+                "fact": _sf(r['fact']),
+                "dev": _sf(r['dev']),
+                "count": int(r['count'])
+            })
+    result['rm_data'] = rm_data
+
     # 4. ABC
     abc_data = []
     abc_stats = df_f.groupby('ABC').agg(
@@ -326,6 +346,8 @@ async def get_finance_orders(
         col = "ЦЕХ"
     elif group_by == "tm":
         col = "ТМ"
+    elif group_by == "rm":
+        col = "РМ"
     else:
         return JSONResponse(status_code=400, content={"error": "Invalid group_by"})
 
