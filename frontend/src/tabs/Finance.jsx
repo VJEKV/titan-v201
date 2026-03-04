@@ -410,8 +410,8 @@ export default function Finance() {
                           title={r.equipment_code || ''}>{r.equipment_code || '—'}</td>
                         <td style={{ color: C.muted, fontSize: 12, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '6px 10px' }}
                           title={r.equipment_name || ''}>
-                          {r.equipment_name || '—'}{' '}
-                          {r.equipment_name && <StarButton active={isEOStarred(r.equipment_name)} onClick={() => toggleEO(r.equipment_name)} size={11} />}
+                          {r.equipment_name && <><StarButton active={isEOStarred(r.equipment_name)} onClick={() => toggleEO(r.equipment_name)} size={11} />{' '}</>}
+                          {r.equipment_name || '—'}
                         </td>
                         <td style={{ color: C.muted, fontSize: 12, padding: '6px 10px' }}>{r.vid}</td>
                         <td style={{ color: C.muted, fontSize: 12, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '6px 10px' }}

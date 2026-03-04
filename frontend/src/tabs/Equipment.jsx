@@ -479,8 +479,8 @@ export default function Equipment() {
                                               <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>{eo.eo}</td>
                                               <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                                                 title={eo.name}>
-                                                {isEoExpanded ? '▼ ' : '▶ '}{eo.name}{' '}
-                                                <StarButton active={isEOStarred(eo.name)} onClick={() => toggleEO(eo.name)} size={10} />
+                                                {isEoExpanded ? '▼ ' : '▶ '}
+                                                <StarButton active={isEOStarred(eo.name)} onClick={() => toggleEO(eo.name)} size={10} />{' '}{eo.name}
                                               </td>
                                               <td style={{ color: ABC_COLORS[eo.abc] || C.muted, fontSize: 11, fontWeight: 600, padding: '4px 8px' }}>{eo.abc || '—'}</td>
                                               <td style={{ color: C.text, fontSize: 11, textAlign: 'center', padding: '4px 8px' }}>{eo.n_orders}</td>
@@ -643,8 +643,8 @@ export default function Equipment() {
                         <td onClick={() => toggleExpand(r.eo)}
                           style={{ color: C.accent, fontSize: 13, fontWeight: 600, padding: '6px 10px', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
                           title={`${r.name} — нажмите для детализации`}>
-                          {isExpanded ? '▼ ' : '▶ '}{r.name}{' '}
-                          <StarButton active={isEOStarred(r.name)} onClick={() => toggleEO(r.name)} size={12} />
+                          {isExpanded ? '▼ ' : '▶ '}
+                          <StarButton active={isEOStarred(r.name)} onClick={() => toggleEO(r.name)} size={12} />{' '}{r.name}
                         </td>
                         <td style={{ color: C.muted, fontSize: 12, padding: '6px 10px' }}>{r.eo}</td>
                         <td style={{ color: ABC_COLORS[r.abc] || C.muted, fontSize: 12, fontWeight: 600, padding: '6px 10px', textAlign: 'center' }}>{r.abc || '—'}</td>

@@ -391,8 +391,8 @@ export default function Orders({ activeMethod, setActiveMethod }) {
                           color: C.text, fontSize: 12, maxWidth: col.width,
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         }} title={String(val || '')}>
-                          {display}{' '}
-                          {val && <StarButton active={isEOStarred(val)} onClick={() => toggleEO(val)} size={11} />}
+                          {val && <><StarButton active={isEOStarred(val)} onClick={() => toggleEO(val)} size={11} />{' '}</>}
+                          {display}
                         </td>
                       );
                     }

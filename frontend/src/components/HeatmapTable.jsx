@@ -270,8 +270,8 @@ export default function HeatmapTable({
                                     </td>
                                     <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                                       title={ord.equipment_name}>
-                                      {ord.equipment_name || '—'}{' '}
-                                      {ord.equipment_name && ord.equipment_name !== '—' && <StarButton active={isEOStarred(ord.equipment_name)} onClick={() => toggleEO(ord.equipment_name)} size={11} />}
+                                      {ord.equipment_name && ord.equipment_name !== '—' && <><StarButton active={isEOStarred(ord.equipment_name)} onClick={() => toggleEO(ord.equipment_name)} size={11} />{' '}</>}
+                                      {ord.equipment_name || '—'}
                                     </td>
                                     <td style={{ color: ABC_COLORS[ord.abc] || C.muted, fontSize: 11, fontWeight: 600, padding: '4px 8px', textAlign: 'center' }}>{ord.abc || '—'}</td>
                                     <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + planMark : '—'}</td>
