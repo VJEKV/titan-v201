@@ -128,13 +128,14 @@ titan-v200/
 │       │   ├── KpiCard.jsx
 │       │   ├── KpiRow.jsx
 │       │   ├── MaxCards.jsx
-│       │   ├── HeatmapTable.jsx   # Таблица с RGB-градиентным фоном строк
+│       │   ├── HeatmapTable.jsx   # Таблица с RGB-градиентным фоном строк + ★ звёздочки
 │       │   ├── MethodCard.jsx     # Карточка метода с donut SVG
 │       │   ├── Badge.jsx
 │       │   ├── ProgressBar.jsx
 │       │   ├── SectionTitle.jsx
 │       │   ├── Card.jsx           # Обёртка с градиентом
-│       │   ├── TabBar.jsx
+│       │   ├── StarButton.jsx     # Кнопка ★/☆ для избранного
+│       │   ├── TabBar.jsx         # Панель вкладок + badge избранного
 │       │   └── Footer.jsx
 │       │
 │       ├── tabs/
@@ -145,11 +146,12 @@ titan-v200/
 │       │   ├── Workplaces.jsx     # TAB 5: Раб.места
 │       │   ├── Risks.jsx          # TAB 6: Приоритеты аудита (КЛЮЧЕВАЯ)
 │       │   ├── Quality.jsx        # TAB 7: C4 Качество
-│       │   └── Orders.jsx         # TAB 8: Заказы (пагинация, фильтрация)
+│       │   └── Orders.jsx         # TAB 9: Заказы (пагинация, фильтрация, ★ избранное)
 │       │
 │       └── hooks/
 │           ├── useApi.js          # Хук для запросов с loading/error
-│           └── useFilters.js      # Состояние фильтров (context)
+│           ├── useFilters.js      # Состояние фильтров (context)
+│           └── useStarred.jsx     # Контекст избранного (★ заказы + ЕО, localStorage)
 │
 └── README.md
 ```
@@ -263,6 +265,7 @@ GET  /api/tab/risks           — Данные для вкладки Приор�
 
 GET  /api/tab/orders          — Реестр заказов (пагинация)
      ?session_id=xxx&filters=JSON&page=1&page_size=50&sort=Risk_Sum&order=desc
+     filters может содержать: starred_orders=["id1"], starred_eo=["eo_name1"]
                                 Response: { data[], total, page, pages }
 
 GET  /api/filters/options     — Доступные значения фильтров
@@ -289,7 +292,9 @@ GET  /api/export/excel        — Скачать Excel
   "search": "000401",
   "vid": ["Плановый ремонт"],
   "abc": ["A", "B"],
-  "stat": ["ЗАКР"]
+  "stat": ["ЗАКР"],
+  "starred_orders": ["000401", "000402"],
+  "starred_eo": ["Насос НМ-1", "Компрессор К-301"]
 }
 ```
 
@@ -307,18 +312,41 @@ GET  /api/export/excel        — Скачать Excel
 
 ---
 
-## 5. ВКЛАДКИ (8 штук)
+## 5. ВКЛАДКИ (9 штук)
 
 | # | Вкладка | Ключевые компоненты |
 |---|---------|-------------------|
-| 1 | ФИНАНСЫ | Bar Chart (план/факт по месяцам), Heatmap TOP по цехам, Heatmap TOP по ТМ, ABC Donut + карточки, Pareto 80/20 |
-| 2 | СРОКИ | Area Chart (заказы по месяцам), Histogram (распределение длительностей) |
-| 3 | ВИДЫ РАБОТ | Donut (плановые/внеплановые), Bar Chart (стоимость по видам) |
-| 4 | ПЛАНОВИКИ | Horizontal Bar (группы плановиков), Heatmap-таблица |
-| 5 | РАБ.МЕСТА | Horizontal Bar TOP-20, Heatmap-таблица |
-| 6 | ПРИОРИТЕТЫ АУДИТА | Radar Chart, 6 карточек методов с donut, TOP-50 таблица с progress-bar, DQ_Risk |
-| 7 | C4 КАЧЕСТВО | SVG Gauge (полнота данных), список критериев с border-left |
-| 8 | ЗАКАЗЫ | Таблица с пагинацией, sort, filter, стилизация ID/STAT/ABC/Δ/Risk badge |
+| 1 | ФИНАНСЫ | Bar Chart (план/факт по месяцам), Heatmap TOP по цехам/ТМ/РМ, Pareto 80/20, ★ звёздочки |
+| 2 | ОБОРУДОВАНИЕ | ABC Donut, классы ЕО, TOP-50 по затратам, частота обслуживания, ★ звёздочки |
+| 3 | СРОКИ | Area Chart (заказы по месяцам), Histogram (распределение длительностей) |
+| 4 | ВИДЫ РАБОТ | Donut (плановые/внеплановые), Bar Chart (стоимость по видам) |
+| 5 | ПЛАНОВИКИ | Horizontal Bar (группы плановиков), Heatmap-таблица |
+| 6 | РАБ.МЕСТА | Horizontal Bar TOP-20, Heatmap-таблица |
+| 7 | ПРИОРИТЕТЫ АУДИТА | Radar Chart, 6 карточек методов с donut, TOP-50 таблица с progress-bar, DQ_Risk |
+| 8 | C4 КАЧЕСТВО | SVG Gauge (полнота данных), список критериев с border-left |
+| 9 | ЗАКАЗЫ | Таблица с пагинацией, sort, filter, ★ фильтр избранного, стилизация ID/STAT/ABC/Δ/Risk badge |
+
+### 5.1 Механизм избранного (★ Звёздочки)
+
+Пользователь отмечает звёздочкой подозрительные заказы и ЕО на любой вкладке. Отмеченные элементы собираются во вкладке «Заказы» как готовая выборка для аудита.
+
+**Архитектура:**
+- `useStarred.jsx` — React Context с двумя Set (`starredOrders`, `starredEO`), персистентность через `localStorage` (ключ `titan_starred_items`)
+- `StarButton.jsx` — компонент ★ (жёлтый `C.warning`) / ☆ (серый `C.dim`), `e.stopPropagation()` для работы внутри аккордеонов
+- `StarredProvider` оборачивает приложение в `App.jsx`
+
+**Где расположены звёздочки:**
+- `HeatmapTable.jsx` — ★ перед ID заказа + ★ после имени ЕО (все аккордеоны: Финансы, Плановики, Раб.места)
+- `Finance.jsx` — ★ в таблице Парето (ID + ЕО)
+- `Equipment.jsx` — ★ рядом с именем ЕО в TOP-50, в аккордеоне классов; ★ перед ID заказа в раскрытых заказах
+- `Orders.jsx` — ★ перед ID заказа + ★ рядом с ЕО; кнопка «★ Избранное (N)» в быстрых фильтрах
+- `TabBar.jsx` — жёлтый badge с количеством избранного у вкладки «Просмотр заказов»
+
+**Backend (`routes_orders.py`):**
+- Параметры `starred_orders` и `starred_eo` в JSON-фильтрах
+- Фильтр: `df[df['ID'].isin(ids) | df['ЕО'].isin(eo_names)]`
+
+**localStorage:** ключ `titan_starred_items`, формат `{"orders":["id1","id2"],"eo":["name1"]}`
 
 ---
 
