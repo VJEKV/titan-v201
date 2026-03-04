@@ -3,6 +3,7 @@ chcp 65001 >nul
 cd /d "%~dp0titan-v200\backend"
 
 :: Убить старый процесс если висит
+taskkill /f /im python.exe >nul 2>&1
 taskkill /f /im pythonw.exe >nul 2>&1
 
 :: Проверить порт 8000 — если занят, подождать
@@ -13,7 +14,7 @@ if %errorlevel%==0 (
 )
 
 echo Запуск TITAN Аудит ТОРО...
-start "" "%~dp0python\pythonw.exe" -m uvicorn main:app --host 127.0.0.1 --port 8000
+start "" "%~dp0python\python.exe" -m uvicorn main:app --host 127.0.0.1 --port 8000
 
 :: Ожидание запуска сервера
 ping -n 5 127.0.0.1 >nul
