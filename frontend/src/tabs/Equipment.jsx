@@ -74,6 +74,43 @@ export default function Equipment() {
       .finally(() => setExpandedLoading(false));
   };
 
+  // Аккордион классов: уровень 1 (какой класс раскрыт)
+  const [expandedClass, setExpandedClass] = useState(null);
+  const [classEoList, setClassEoList] = useState([]);
+  const [classEoLoading, setClassEoLoading] = useState(false);
+  // Аккордион классов: уровень 2 (какой ЕО раскрыт)
+  const [expandedClassEo, setExpandedClassEo] = useState(null);
+  const [classEoOrders, setClassEoOrders] = useState([]);
+  const [classEoOrdersLoading, setClassEoOrdersLoading] = useState(false);
+
+  const toggleClassExpand = (className) => {
+    if (expandedClass === className) {
+      setExpandedClass(null); setClassEoList([]);
+      setExpandedClassEo(null); setClassEoOrders([]);
+      return;
+    }
+    setExpandedClass(className);
+    setExpandedClassEo(null); setClassEoOrders([]);
+    setClassEoLoading(true);
+    apiGet('/api/equipment/by-class', { session_id: sessionId, filters, thresholds, class_name: className })
+      .then(res => setClassEoList(res.items || []))
+      .catch(() => setClassEoList([]))
+      .finally(() => setClassEoLoading(false));
+  };
+
+  const toggleClassEoExpand = (eoCode) => {
+    if (expandedClassEo === eoCode) {
+      setExpandedClassEo(null); setClassEoOrders([]);
+      return;
+    }
+    setExpandedClassEo(eoCode);
+    setClassEoOrdersLoading(true);
+    apiGet('/api/equipment/orders', { session_id: sessionId, filters, thresholds, eo_code: eoCode })
+      .then(res => setClassEoOrders(res.orders || []))
+      .catch(() => setClassEoOrders([]))
+      .finally(() => setClassEoOrdersLoading(false));
+  };
+
   // Частота обслуживания: сортировка + accordion
   const [freqSort, setFreqSort] = useState({ col: 'avg_interval', dir: 'asc' });
   const [freqExpandedEo, setFreqExpandedEo] = useState(null);
@@ -318,8 +355,8 @@ export default function Equipment() {
         <KpiCard title="ВСЕГО ЕО" value={fmtNum(kpi.total_eo)} />
         <KpiCard title="ОСОБО КРИТ." value={fmtNum(kpi.abc_osob)} color="#9f1239" />
         <KpiCard title="ВЫСОКО КРИТ." value={fmtNum(kpi.abc_vysok)} color={C.danger} />
-        <KpiCard title="НИЗКОЙ КРИТ." value={fmtNum(kpi.abc_low)} color={C.accent} />
-        <KpiCard title="НЕ КРИТИЧНО" value={fmtNum(kpi.abc_none)} color={C.success} />
+        <KpiCard title="НИЗКОЙ КРИТ." value={fmtNum(kpi.abc_low)} color={C.warning} />
+        <KpiCard title="НЕ КРИТИЧНО" value={fmtNum(kpi.abc_none)} color={C.accent} />
         <KpiCard title="БЕЗ ЕО (ЗАКАЗОВ)" value={fmtNum(kpi.no_eo_orders)} color={C.dim} />
       </KpiRow>
 
@@ -353,18 +390,124 @@ export default function Equipment() {
                   </tr>
                 </thead>
                 <tbody>
-                  {classes_data.map((r, i) => (
-                    <tr key={i} style={{ borderBottom: `1px solid ${C.border}33` }}>
-                      <td style={{ color: C.accent, fontSize: 13, fontWeight: 600, padding: '6px 10px' }}>{r.class_name}</td>
-                      <td style={{ color: C.text, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{fmtNum(r.n_eo)}</td>
-                      <td style={{ color: C.text, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{fmtNum(r.n_orders)}</td>
-                      <td style={{ color: C.text, fontSize: 12, textAlign: 'right', padding: '6px 10px' }}>{fmtShort(r.plan)} ₽</td>
-                      <td style={{ color: C.text, fontSize: 12, textAlign: 'right', padding: '6px 10px' }}>{fmtShort(r.fact)} ₽</td>
-                      <td style={{ color: r.dev > 0 ? C.danger : r.dev < 0 ? C.success : C.muted, fontSize: 12, textAlign: 'right', padding: '6px 10px', fontWeight: 600 }}>
-                        {r.dev > 0 ? '+' : ''}{fmtShort(r.dev)} ₽
-                      </td>
-                    </tr>
-                  ))}
+                  {classes_data.map((r, i) => {
+                    const isClassExpanded = expandedClass === r.class_name;
+                    return (
+                      <React.Fragment key={i}>
+                        <tr style={{ borderBottom: `1px solid ${C.border}33`, cursor: 'pointer' }} onClick={() => toggleClassExpand(r.class_name)}>
+                          <td style={{ color: C.accent, fontSize: 13, fontWeight: 600, padding: '6px 10px', whiteSpace: 'nowrap' }}>
+                            {isClassExpanded ? '▼ ' : '▶ '}{r.class_name}
+                          </td>
+                          <td style={{ color: C.text, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{fmtNum(r.n_eo)}</td>
+                          <td style={{ color: C.text, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{fmtNum(r.n_orders)}</td>
+                          <td style={{ color: C.text, fontSize: 12, textAlign: 'right', padding: '6px 10px' }}>{fmtShort(r.plan)} ₽</td>
+                          <td style={{ color: C.text, fontSize: 12, textAlign: 'right', padding: '6px 10px' }}>{fmtShort(r.fact)} ₽</td>
+                          <td style={{ color: r.dev > 0 ? C.danger : r.dev < 0 ? C.success : C.muted, fontSize: 12, textAlign: 'right', padding: '6px 10px', fontWeight: 600 }}>
+                            {r.dev > 0 ? '+' : ''}{fmtShort(r.dev)} ₽
+                          </td>
+                        </tr>
+                        {isClassExpanded && (
+                          <tr>
+                            <td colSpan={6} style={{ padding: 0 }}>
+                              <div style={{
+                                background: 'linear-gradient(145deg, #1e293b 0%, #1a2332 100%)',
+                                padding: '12px 16px', borderLeft: `3px solid ${C.accent}`,
+                                margin: '0 8px 8px 8px', borderRadius: '0 0 8px 8px',
+                              }}>
+                                {classEoLoading ? (
+                                  <p style={{ color: C.muted, fontSize: 12 }}>Загрузка оборудования...</p>
+                                ) : classEoList.length === 0 ? (
+                                  <p style={{ color: C.muted, fontSize: 12 }}>Нет оборудования</p>
+                                ) : (
+                                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                      <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                                        {['Код ЕО', 'Название', 'ABC', 'Заказов', 'План ₽', 'Факт ₽', 'Откл. ₽'].map(h => (
+                                          <th key={h} style={{ color: C.dim, fontSize: 10, padding: '4px 8px', textAlign: 'left', fontWeight: 600 }}>{h}</th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {classEoList.map((eo, j) => {
+                                        const isEoExpanded = expandedClassEo === eo.eo;
+                                        return (
+                                          <React.Fragment key={j}>
+                                            <tr style={{ borderBottom: `1px solid ${C.border}22`, cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); toggleClassEoExpand(eo.eo); }}>
+                                              <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>{eo.eo}</td>
+                                              <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                                title={eo.name}>
+                                                {isEoExpanded ? '▼ ' : '▶ '}{eo.name}
+                                              </td>
+                                              <td style={{ color: ABC_COLORS[eo.abc] || C.muted, fontSize: 11, fontWeight: 600, padding: '4px 8px' }}>{eo.abc || '—'}</td>
+                                              <td style={{ color: C.text, fontSize: 11, textAlign: 'center', padding: '4px 8px' }}>{eo.n_orders}</td>
+                                              <td style={{ color: C.text, fontSize: 11, textAlign: 'right', padding: '4px 8px' }}>{fmtShort(eo.plan)} ₽</td>
+                                              <td style={{ color: C.text, fontSize: 11, textAlign: 'right', padding: '4px 8px' }}>{fmtShort(eo.fact)} ₽</td>
+                                              <td style={{ color: eo.dev > 0 ? C.danger : eo.dev < 0 ? C.success : C.muted, fontSize: 11, textAlign: 'right', padding: '4px 8px', fontWeight: 600 }}>
+                                                {eo.dev > 0 ? '+' : ''}{fmtShort(eo.dev)} ₽
+                                              </td>
+                                            </tr>
+                                            {isEoExpanded && (
+                                              <tr>
+                                                <td colSpan={7} style={{ padding: 0 }}>
+                                                  <div style={{
+                                                    background: 'linear-gradient(145deg, #1a2332 0%, #162030 100%)',
+                                                    padding: '10px 14px', borderLeft: `3px solid ${C.cyan}`,
+                                                    margin: '0 6px 6px 20px', borderRadius: '0 0 8px 8px',
+                                                  }}>
+                                                    {classEoOrdersLoading ? (
+                                                      <p style={{ color: C.muted, fontSize: 11 }}>Загрузка заказов...</p>
+                                                    ) : classEoOrders.length === 0 ? (
+                                                      <p style={{ color: C.muted, fontSize: 11 }}>Нет заказов</p>
+                                                    ) : (
+                                                      <>
+                                                      <div style={{ fontSize: 10, color: C.dim, marginBottom: 6 }}>
+                                                        <span style={{ color: '#ffffff' }}>белый</span> — факт, <span style={{ color: C.warning }}>жёлтый •</span> — план, <span style={{ color: C.danger }}>красный</span> — нет
+                                                      </div>
+                                                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                                        <thead>
+                                                          <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                                                            {['Заказ', 'Дата нач.', 'Дата кон.', 'Вид работ', 'Статус', 'План ₽', 'Факт ₽'].map(h => (
+                                                              <th key={h} style={{ color: C.dim, fontSize: 10, padding: '4px 6px', textAlign: 'left', fontWeight: 600 }}>{h}</th>
+                                                            ))}
+                                                          </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                          {classEoOrders.map((ord, k) => {
+                                                            const dClr = ord.date_source === 'FACT' ? '#ffffff' : ord.date_source === 'PLAN' ? C.warning : C.danger;
+                                                            const pm = ord.date_source === 'PLAN' ? ' •' : '';
+                                                            return (
+                                                            <tr key={k} style={{ borderBottom: `1px solid ${C.border}22` }}>
+                                                              <td style={{ color: C.accent, fontSize: 10, padding: '3px 6px', fontWeight: 600 }}>{ord.id}</td>
+                                                              <td style={{ color: dClr, fontSize: 10, padding: '3px 6px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + pm : '—'}</td>
+                                                              <td style={{ color: dClr, fontSize: 10, padding: '3px 6px', whiteSpace: 'nowrap' }}>{ord.date_end ? ord.date_end + pm : '—'}</td>
+                                                              <td style={{ color: C.text, fontSize: 10, padding: '3px 6px' }}>{ord.vid}</td>
+                                                              <td style={{ color: C.muted, fontSize: 10, padding: '3px 6px' }}>{ord.stat}</td>
+                                                              <td style={{ color: C.text, fontSize: 10, padding: '3px 6px', textAlign: 'right' }}>{fmtShort(ord.plan)}</td>
+                                                              <td style={{ color: C.text, fontSize: 10, padding: '3px 6px', textAlign: 'right' }}>{fmtShort(ord.fact)}</td>
+                                                            </tr>
+                                                            );
+                                                          })}
+                                                        </tbody>
+                                                      </table>
+                                                      </>
+                                                    )}
+                                                  </div>
+                                                </td>
+                                              </tr>
+                                            )}
+                                          </React.Fragment>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -653,7 +796,7 @@ export default function Equipment() {
                           title={`${f.equipment_name || '—'} — нажмите для детализации`}>
                           {isFreqExpanded ? '▼ ' : '▶ '}{f.equipment_name || '—'}
                         </td>
-                        <td style={{ color: f.abc === 'A' || f.abc === 'Высококритичное' ? C.danger : f.abc === 'B' || f.abc === 'Средней критичности' ? C.warning : f.abc === 'C' ? C.success : C.muted, fontSize: 12, fontWeight: 600, padding: '6px 10px', textAlign: 'center' }}>{f.abc || '—'}</td>
+                        <td style={{ color: ABC_COLORS[f.abc] || C.muted, fontSize: 12, fontWeight: 600, padding: '6px 10px', textAlign: 'center' }}>{f.abc || '—'}</td>
                         <td style={{ color: C.text, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.n_orders}</td>
                         <td style={{ color: C.text, fontSize: 12, textAlign: 'right', padding: '6px 10px' }}>{fmtShort(f.total_plan)} ₽</td>
                         <td style={{ color: C.orange, fontSize: 12, textAlign: 'right', padding: '6px 10px', fontWeight: 600 }}>{fmtShort(f.total_fact)} ₽</td>

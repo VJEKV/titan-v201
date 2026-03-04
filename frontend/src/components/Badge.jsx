@@ -7,6 +7,8 @@ const PRESETS = {
   accent: { bg: 'rgba(56,189,248,0.15)', color: C.accent, border: C.accent },
   purple: { bg: 'rgba(167,139,250,0.15)', color: C.purple, border: C.purple },
   muted: { bg: 'rgba(100,116,139,0.15)', color: C.muted, border: C.dim },
+  maroon: { bg: 'rgba(159,18,57,0.15)', color: '#9f1239', border: '#9f1239' },
+  orange: { bg: 'rgba(251,146,60,0.15)', color: C.orange, border: C.orange },
 };
 
 /**

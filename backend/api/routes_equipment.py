@@ -486,6 +486,68 @@ async def get_equipment_orders(
     return {"orders": orders}
 
 
+@router.get("/api/equipment/by-class")
+async def get_equipment_by_class(
+    session_id: str = Query(...),
+    filters: str = Query("{}"),
+    thresholds: str = Query("{}"),
+    class_name: str = Query(...),
+):
+    """Список ЕО по классу оборудования с агрегатами."""
+    df_f = _get_df(session_id, filters, thresholds)
+    if df_f is None:
+        return JSONResponse(status_code=404, content={"error": "Сессия не найдена"})
+
+    eo_col = 'EQUNR_Код' if 'EQUNR_Код' in df_f.columns else 'ЕО'
+    eo_name_col = 'ЕО' if 'ЕО' in df_f.columns else eo_col
+
+    # Фильтруем заказы с реальным ЕО
+    df_f = df_f.copy()
+    if eo_col in df_f.columns:
+        has_eo = ~is_empty_eo_mask(df_f[eo_col])
+    else:
+        has_eo = pd.Series(False, index=df_f.index)
+    df_with_eo = df_f[has_eo].copy()
+
+    # Классификация
+    if eo_name_col in df_with_eo.columns:
+        df_with_eo['Класс_ЕО'] = df_with_eo[eo_name_col].apply(classify_equipment)
+    else:
+        df_with_eo['Класс_ЕО'] = 'Без класса'
+
+    # Фильтр по классу
+    df_cls = df_with_eo[df_with_eo['Класс_ЕО'] == class_name]
+    if len(df_cls) == 0:
+        return {"items": []}
+
+    # Группировка по ЕО
+    agg_dict = {
+        'n_orders': ('ID', 'count'),
+        'plan': ('Plan_N', 'sum'),
+        'fact': ('Fact_N', 'sum'),
+        'name': (eo_name_col, 'first'),
+    }
+    if 'ABC' in df_cls.columns:
+        agg_dict['abc'] = ('ABC', 'first')
+
+    eo_grp = df_cls.groupby(eo_col).agg(**agg_dict).reset_index()
+    eo_grp['dev'] = eo_grp['fact'] - eo_grp['plan']
+    eo_grp = eo_grp.sort_values('fact', ascending=False)
+
+    items = []
+    for _, r in eo_grp.iterrows():
+        items.append({
+            "eo": str(r[eo_col]),
+            "name": str(r['name'])[:60],
+            "abc": str(r['abc']) if 'abc' in r.index and pd.notna(r['abc']) else '',
+            "n_orders": int(r['n_orders']),
+            "plan": _sf(r['plan']),
+            "fact": _sf(r['fact']),
+            "dev": _sf(r['dev']),
+        })
+    return {"items": items}
+
+
 @router.get("/api/export/equipment-class-excel")
 async def export_equipment_class_excel(
     session_id: str = Query(...),

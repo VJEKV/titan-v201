@@ -159,7 +159,14 @@ export default function Orders({ activeMethod, setActiveMethod }) {
     { key: 'methods', label: 'Методы', width: 140 },
   ];
 
-  const abcColors = { A: 'danger', B: 'warning', C: 'success' };
+  const abcColors = {
+    'Оч.высокая/Особокрит': 'maroon', 'Оч.высокая': 'maroon', 'Особокритичное': 'maroon',
+    'A': 'danger', 'Высококритичное': 'danger', 'Высокая': 'danger',
+    'B': 'orange', 'Средней критичности': 'orange', 'Средняя': 'orange', 'Средней крит.': 'orange',
+    'Низкой критичности': 'warning',
+    'C': 'accent', 'Не критично': 'accent',
+    'Н/Д': 'muted',
+  };
 
   const quickOpts = data?.quick_options || {};
 
