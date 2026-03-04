@@ -107,6 +107,7 @@ def _build_orders_list(df_subset):
         eo_code = str(row.get('EQUNR_Код', '')) if 'EQUNR_Код' in df_subset.columns and pd.notna(row.get('EQUNR_Код')) else ''
         # Каскадные даты
         date_source = str(row.get('Источник_Дат', 'NONE')) if pd.notna(row.get('Источник_Дат')) else 'NONE'
+        rm = str(row.get('РМ', '')) if pd.notna(row.get('РМ')) else ''
         orders.append({
             "id": order_id, "text": text, "vid": vid,
             "date": date_str, "fact": fact, "plan": plan, "stat": stat,
@@ -115,6 +116,7 @@ def _build_orders_list(df_subset):
             "date_start": _fmt_cascade_date(row.get('Дата_Начало')),
             "date_end": _fmt_cascade_date(row.get('Дата_Конец')),
             "date_source": date_source,
+            "rm": rm,
         })
     return orders
 
