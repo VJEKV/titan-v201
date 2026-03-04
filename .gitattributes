@@ -1,2 +1,2 @@
-# .bat файлы всегда с Windows-переводами строк (CRLF)
-*.bat text eol=crlf
+# .bat файлы хранятся as-is (CRLF сохраняется в git и в zip-скачиваниях)
+*.bat -text
