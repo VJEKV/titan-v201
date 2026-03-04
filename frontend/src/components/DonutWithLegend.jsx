@@ -21,9 +21,9 @@ export default function DonutWithLegend({
   data,
   colors,
   chartId = 'donut',
-  height = 450,
-  innerRadius = 90,
-  outerRadius = 155,
+  height = 500,
+  innerRadius = 75,
+  outerRadius = 135,
   fontSize = 11,
   fontFamily = 'Inter',
   minAngle = 35,
@@ -49,7 +49,7 @@ export default function DonutWithLegend({
               label={({ name, percent, cx: pcx, cy: pcy, midAngle, outerRadius: oR, startAngle, endAngle }) => {
                 const angle = Math.abs(endAngle - startAngle);
                 if (angle < minAngle) return null;
-                const radius = oR + 60;
+                const radius = oR + 45;
                 const x = pcx + radius * Math.cos(-midAngle * RADIAN);
                 const y = pcy + radius * Math.sin(-midAngle * RADIAN);
                 const pct = (percent * 100).toFixed(0);

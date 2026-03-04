@@ -507,7 +507,7 @@ export default function Equipment() {
                                                       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                                         <thead>
                                                           <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                                            {[{key:'id',label:'Заказ'},{key:'date_start',label:'Дата нач.'},{key:'date_end',label:'Дата кон.'},{key:'vid',label:'Вид работ'},{key:'stat',label:'Статус'},{key:'plan',label:'План ₽'},{key:'fact',label:'Факт ₽'}].map(h => (
+                                                            {[{key:'id',label:'Заказ'},{key:'date_start',label:'Дата нач.'},{key:'date_end',label:'Дата кон.'},{key:'vid',label:'Вид работ'},{key:'stat',label:'Статус'},{key:'plan',label:'План ₽'},{key:'fact',label:'Факт ₽'},{key:'dev',label:'Откл. ₽'}].map(h => (
                                                               <th key={h.key} onClick={(e) => { e.stopPropagation(); handleClassOrdSort(h.key); }}
                                                                 style={{ color: classOrdSort.col === h.key ? C.accent : C.dim, fontSize: 10, padding: '4px 6px', textAlign: 'left', fontWeight: 600, cursor: 'pointer', userSelect: 'none' }}>
                                                                 {h.label} {classOrdSort.col === h.key ? (classOrdSort.dir === 'desc' ? '▼' : '▲') : ''}
@@ -524,6 +524,7 @@ export default function Equipment() {
                                                           }).map((ord, k) => {
                                                             const dClr = ord.date_source === 'FACT' ? '#ffffff' : ord.date_source === 'PLAN' ? C.warning : C.danger;
                                                             const pm = ord.date_source === 'PLAN' ? ' •' : '';
+                                                            const ordDev = (ord.dev != null) ? ord.dev : (ord.fact || 0) - (ord.plan || 0);
                                                             return (
                                                             <tr key={k} style={{ borderBottom: `1px solid ${C.border}22` }}>
                                                               <td style={{ color: C.accent, fontSize: 10, padding: '3px 6px', fontWeight: 600 }}>{ord.id}</td>
@@ -533,6 +534,9 @@ export default function Equipment() {
                                                               <td style={{ color: C.muted, fontSize: 10, padding: '3px 6px' }}>{ord.stat}</td>
                                                               <td style={{ color: C.text, fontSize: 10, padding: '3px 6px', textAlign: 'right' }}>{fmtShort(ord.plan)}</td>
                                                               <td style={{ color: C.text, fontSize: 10, padding: '3px 6px', textAlign: 'right' }}>{fmtShort(ord.fact)}</td>
+                                                              <td style={{ color: ordDev > 0 ? C.danger : ordDev < 0 ? C.success : C.muted, fontSize: 10, padding: '3px 6px', textAlign: 'right', fontWeight: 600 }}>
+                                                                {ordDev > 0 ? '+' : ''}{fmtShort(ordDev)} ₽
+                                                              </td>
                                                             </tr>
                                                             );
                                                           })}
@@ -659,7 +663,7 @@ export default function Equipment() {
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                   <thead>
                                     <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                      {['Заказ', 'Дата нач.', 'Дата кон.', 'Вид работ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽'].map(h => (
+                                      {['Заказ', 'Дата нач.', 'Дата кон.', 'Вид работ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽', 'Откл. ₽'].map(h => (
                                         <th key={h} style={{ color: C.dim, fontSize: 10, padding: '4px 8px', textAlign: 'left', fontWeight: 600 }}>{h}</th>
                                       ))}
                                     </tr>
@@ -668,6 +672,7 @@ export default function Equipment() {
                                     {expandedOrders.map((ord, j) => {
                                       const dClr = ord.date_source === 'FACT' ? '#ffffff' : ord.date_source === 'PLAN' ? C.warning : C.danger;
                                       const pm = ord.date_source === 'PLAN' ? ' \u2022' : '';
+                                      const oDev = (ord.dev != null) ? ord.dev : (ord.fact || 0) - (ord.plan || 0);
                                       return (
                                       <tr key={j} style={{ borderBottom: `1px solid ${C.border}22` }}>
                                         <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>{ord.id}</td>
@@ -679,6 +684,9 @@ export default function Equipment() {
                                           title={ord.text}>{ord.text}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.plan)}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.fact)}</td>
+                                        <td style={{ color: oDev > 0 ? C.danger : oDev < 0 ? C.success : C.muted, fontSize: 11, padding: '4px 8px', textAlign: 'right', fontWeight: 600 }}>
+                                          {oDev > 0 ? '+' : ''}{fmtShort(oDev)} ₽
+                                        </td>
                                       </tr>
                                       );
                                     })}
@@ -875,7 +883,7 @@ export default function Equipment() {
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                   <thead>
                                     <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                      {['Заказ', 'Дата нач.', 'Дата кон.', 'Вид работ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽'].map(h => (
+                                      {['Заказ', 'Дата нач.', 'Дата кон.', 'Вид работ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽', 'Откл. ₽'].map(h => (
                                         <th key={h} style={{ color: C.dim, fontSize: 10, padding: '4px 8px', textAlign: 'left', fontWeight: 600 }}>{h}</th>
                                       ))}
                                     </tr>
@@ -884,6 +892,7 @@ export default function Equipment() {
                                     {freqExpandedOrders.map((ord, j) => {
                                       const dClr = ord.date_source === 'FACT' ? '#ffffff' : ord.date_source === 'PLAN' ? C.warning : C.danger;
                                       const pm = ord.date_source === 'PLAN' ? ' \u2022' : '';
+                                      const fDev = (ord.dev != null) ? ord.dev : (ord.fact || 0) - (ord.plan || 0);
                                       return (
                                       <tr key={j} style={{ borderBottom: `1px solid ${C.border}22` }}>
                                         <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>{ord.id}</td>
@@ -895,6 +904,9 @@ export default function Equipment() {
                                           title={ord.text}>{ord.text}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.plan)}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.fact)}</td>
+                                        <td style={{ color: fDev > 0 ? C.danger : fDev < 0 ? C.success : C.muted, fontSize: 11, padding: '4px 8px', textAlign: 'right', fontWeight: 600 }}>
+                                          {fDev > 0 ? '+' : ''}{fmtShort(fDev)} ₽
+                                        </td>
                                       </tr>
                                       );
                                     })}

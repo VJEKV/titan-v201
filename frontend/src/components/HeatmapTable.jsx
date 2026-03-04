@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { C, heatBg } from '../theme/arctic';
+import { C, heatBg, ABC_COLORS } from '../theme/arctic';
 
 /**
  * Heatmap-таблица с RGB-градиентным фоном строк.
@@ -35,14 +35,17 @@ const COLUMNS = [
 ];
 
 const INNER_COLUMNS = [
-  { key: 'id',         label: 'Заказ',      align: 'left',  type: 'str' },
-  { key: 'date_start', label: 'Дата нач.',  align: 'left',  type: 'str' },
-  { key: 'date_end',   label: 'Дата кон.',  align: 'left',  type: 'str' },
-  { key: 'vid',        label: 'Вид работ',  align: 'left',  type: 'str' },
-  { key: 'stat',       label: 'Статус',     align: 'left',  type: 'str' },
-  { key: 'text',       label: 'Текст работ',align: 'left',  type: 'str' },
-  { key: 'plan',       label: 'План ₽',     align: 'right', type: 'num' },
-  { key: 'fact',       label: 'Факт ₽',     align: 'right', type: 'num' },
+  { key: 'id',              label: 'Заказ',      align: 'left',  type: 'str' },
+  { key: 'equipment_name',  label: 'ЕО',         align: 'left',  type: 'str' },
+  { key: 'abc',             label: 'ABC',        align: 'center',type: 'str' },
+  { key: 'date_start',      label: 'Дата нач.',  align: 'left',  type: 'str' },
+  { key: 'date_end',        label: 'Дата кон.',  align: 'left',  type: 'str' },
+  { key: 'vid',             label: 'Вид работ',  align: 'left',  type: 'str' },
+  { key: 'stat',            label: 'Статус',     align: 'left',  type: 'str' },
+  { key: 'text',            label: 'Текст работ',align: 'left',  type: 'str' },
+  { key: 'plan',            label: 'План ₽',     align: 'right', type: 'num' },
+  { key: 'fact',            label: 'Факт ₽',     align: 'right', type: 'num' },
+  { key: 'dev',             label: 'Откл. ₽',    align: 'right', type: 'num' },
 ];
 
 /** Цвет даты по источнику каскада */
@@ -231,19 +234,26 @@ export default function HeatmapTable({
                                 {sortedOrders.map((ord, j) => {
                                   const dClr = dateColor(ord.date_source);
                                   const planMark = ord.date_source === 'PLAN' ? ' \u2022' : '';
+                                  const devClr = (ord.dev || 0) > 0 ? C.danger : (ord.dev || 0) < 0 ? C.success : C.muted;
                                   return (
                                   <tr key={j} style={{ borderBottom: `1px solid ${C.border}22` }}>
                                     <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>{ord.id}</td>
+                                    <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                      title={ord.equipment_name}>{ord.equipment_name || '—'}</td>
+                                    <td style={{ color: ABC_COLORS[ord.abc] || C.muted, fontSize: 11, fontWeight: 600, padding: '4px 8px', textAlign: 'center' }}>{ord.abc || '—'}</td>
                                     <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + planMark : '—'}</td>
                                     <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_end ? ord.date_end + planMark : '—'}</td>
                                     <td style={{ color: C.text, fontSize: 11, padding: '4px 8px' }}>{ord.vid}</td>
                                     <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px' }}>{ord.stat}</td>
                                     <td style={{
                                       color: C.text, fontSize: 11, padding: '4px 8px',
-                                      maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                      maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                     }} title={ord.text}>{ord.text}</td>
                                     <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.plan)}</td>
                                     <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', textAlign: 'right' }}>{fmtShort(ord.fact)}</td>
+                                    <td style={{ color: devClr, fontSize: 11, padding: '4px 8px', textAlign: 'right', fontWeight: 600 }}>
+                                      {(ord.dev || 0) > 0 ? '+' : ''}{fmtShort(ord.dev || 0)} ₽
+                                    </td>
                                   </tr>
                                   );
                                 })}

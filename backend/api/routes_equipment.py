@@ -476,6 +476,7 @@ async def get_equipment_orders(
             "date": date_str,
             "fact": fact,
             "plan": plan,
+            "dev": round(fact - plan, 2),
             "stat": stat,
             "date_start": date_start_str,
             "date_end": date_end_str,
