@@ -781,7 +781,8 @@ export default function Equipment() {
                     <tr key={i} style={{ borderBottom: `1px solid ${C.border}22` }}>
                       <td style={{ color: C.text, fontSize: 10, padding: '4px 8px', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: C.surface, zIndex: 1, maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis' }}
                         title={eo}>
-                        <span>{name.length > 24 ? name.slice(0,24)+'...' : name}</span>
+                        <StarButton active={isEOStarred(name)} onClick={() => toggleEO(name)} size={10} />{' '}
+                        <span>{name.length > 22 ? name.slice(0,22)+'...' : name}</span>
                         <span style={{ color: C.muted, marginLeft: 6 }}>|</span>
                         <span style={{ color: C.accent, marginLeft: 4 }}>{nOrders} зак.</span>
                         <span style={{ color: C.muted, marginLeft: 4 }}>|</span>
@@ -869,7 +870,8 @@ export default function Equipment() {
                         <td onClick={() => toggleFreqExpand(f.eo)}
                           style={{ color: C.text, fontSize: 12, padding: '6px 10px', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
                           title={`${f.equipment_name || '—'} — нажмите для детализации`}>
-                          {isFreqExpanded ? '▼ ' : '▶ '}{f.equipment_name || '—'}
+                          {isFreqExpanded ? '▼ ' : '▶ '}
+                          <StarButton active={isEOStarred(f.equipment_name)} onClick={() => toggleEO(f.equipment_name)} size={11} />{' '}{f.equipment_name || '—'}
                         </td>
                         <td style={{ color: ABC_COLORS[f.abc] || C.muted, fontSize: 12, fontWeight: 600, padding: '6px 10px', textAlign: 'center' }}>{f.abc || '—'}</td>
                         <td style={{ color: C.text, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.n_orders}</td>
