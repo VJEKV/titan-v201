@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList, LineChart, Line } from 'recharts';
-import { C, ABC_COLORS } from '../theme/arctic';
+import { C, ABC_COLORS, ABC_ORDER } from '../theme/arctic';
 import { useFilters } from '../hooks/useFilters';
 import { apiGet, apiDownload } from '../api/client';
 import KpiCard from '../components/KpiCard';
@@ -181,7 +181,8 @@ export default function Equipment() {
   const sortedTop50 = [...(top50 || [])].sort((a, b) => {
     const dir = topSort.dir === 'desc' ? -1 : 1;
     const av = a[topSort.col], bv = b[topSort.col];
-    if (typeof av === 'string') return dir * av.localeCompare(bv);
+    if (topSort.col === 'abc') return dir * ((ABC_ORDER[av] || 99) - (ABC_ORDER[bv] || 99));
+    if (typeof av === 'string') return dir * (av || '').localeCompare(bv || '');
     return dir * ((av || 0) - (bv || 0));
   });
 
@@ -464,6 +465,7 @@ export default function Equipment() {
                                       {[...classEoList].sort((a, b) => {
                                         const dir = classEoSort.dir === 'desc' ? -1 : 1;
                                         const av = a[classEoSort.col], bv = b[classEoSort.col];
+                                        if (classEoSort.col === 'abc') return dir * ((ABC_ORDER[av] || 99) - (ABC_ORDER[bv] || 99));
                                         if (typeof av === 'string') return dir * (av || '').localeCompare(bv || '');
                                         return dir * ((av || 0) - (bv || 0));
                                       }).map((eo, j) => {
@@ -813,6 +815,7 @@ export default function Equipment() {
         const sortedFreq = [...frequency].sort((a, b) => {
           const dir = freqSort.dir === 'desc' ? -1 : 1;
           const av = a[freqSort.col], bv = b[freqSort.col];
+          if (freqSort.col === 'abc') return dir * ((ABC_ORDER[av] || 99) - (ABC_ORDER[bv] || 99));
           if (typeof av === 'string') return dir * (av || '').localeCompare(bv || '');
           return dir * ((av || 0) - (bv || 0));
         });

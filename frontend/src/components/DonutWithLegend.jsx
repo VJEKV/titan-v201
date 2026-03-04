@@ -1,8 +1,6 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { C } from '../theme/arctic';
 
-const RADIAN = Math.PI / 180;
-
 function fmtShort(v) {
   if (!v && v !== 0) return "0";
   const a = Math.abs(v), s = v >= 0 ? "" : "-";
@@ -21,20 +19,19 @@ export default function DonutWithLegend({
   data,
   colors,
   chartId = 'donut',
-  height = 500,
-  innerRadius = 75,
-  outerRadius = 135,
+  height = 340,
+  innerRadius = 70,
+  outerRadius = 125,
   fontSize = 11,
   fontFamily = 'Inter',
-  minAngle = 35,
 }) {
   if (!data || data.length === 0) return null;
 
   const total = data.reduce((s, d) => s + (d.value || 0), 0);
 
   return (
-    <div style={{ display: 'flex', gap: 30, flexWrap: 'wrap', alignItems: 'center', width: '100%', justifyContent: 'center' }}>
-      <div style={{ flex: '1 1 450px', minWidth: 350, maxWidth: 600 }}>
+    <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center', width: '100%', justifyContent: 'center' }}>
+      <div style={{ flex: '0 0 300px', minWidth: 260, maxWidth: 340 }}>
         <ResponsiveContainer width="100%" height={height}>
           <PieChart>
             <Pie
@@ -46,23 +43,8 @@ export default function DonutWithLegend({
               innerRadius={innerRadius}
               outerRadius={outerRadius}
               paddingAngle={2}
-              label={({ name, percent, cx: pcx, cy: pcy, midAngle, outerRadius: oR, startAngle, endAngle }) => {
-                const angle = Math.abs(endAngle - startAngle);
-                if (angle < minAngle) return null;
-                const radius = oR + 45;
-                const x = pcx + radius * Math.cos(-midAngle * RADIAN);
-                const y = pcy + radius * Math.sin(-midAngle * RADIAN);
-                const pct = (percent * 100).toFixed(0);
-                const val = fmtShort(data.find(d => d.name === name)?.value || 0);
-                return (
-                  <text x={x} y={y} fill="#e2e8f0" fontSize={fontSize} fontWeight={600} fontFamily={fontFamily}
-                    textAnchor={x > pcx ? 'start' : 'end'} dominantBaseline="central">
-                    <tspan x={x} dy="0">{name}</tspan>
-                    <tspan x={x} dy="16">{pct}% | {val} ₽</tspan>
-                  </text>
-                );
-              }}
-              labelLine={{ stroke: '#64748b', strokeWidth: 1 }}
+              label={false}
+              labelLine={false}
             >
               {data.map((_, i) => (
                 <Cell key={`${chartId}-cell-${i}`} fill={colors[i % colors.length]} stroke={C.bg} strokeWidth={2} />
@@ -77,7 +59,7 @@ export default function DonutWithLegend({
         </ResponsiveContainer>
       </div>
 
-      <div style={{ flex: '1 1 380px', minWidth: 300, maxWidth: 550, display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <div style={{ flex: '1 1 380px', minWidth: 300, maxWidth: 600, display: 'flex', flexDirection: 'column', gap: 5 }}>
         {data.map((d, i) => {
           const clr = colors[i % colors.length];
           const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0';

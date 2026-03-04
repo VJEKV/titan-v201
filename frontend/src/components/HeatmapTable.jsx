@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { C, heatBg, ABC_COLORS } from '../theme/arctic';
+import { C, heatBg, ABC_COLORS, ABC_ORDER } from '../theme/arctic';
 
 /**
  * Heatmap-таблица с RGB-градиентным фоном строк.
@@ -89,11 +89,11 @@ export default function HeatmapTable({
   const sortedData = useMemo(() => {
     if (!sortCol) return data;
     const sorted = [...data].sort((a, b) => {
-      const ak = sortCol === 'name' ? (a[nameKey] || '') : (a[sortCol] || 0);
-      const bk = sortCol === 'name' ? (b[nameKey] || '') : (b[sortCol] || 0);
       if (sortCol === 'name') {
-        return sortDir === 'asc' ? String(ak).localeCompare(String(bk), 'ru') : String(bk).localeCompare(String(ak), 'ru');
+        const ak = String(a[nameKey] || ''), bk = String(b[nameKey] || '');
+        return sortDir === 'asc' ? ak.localeCompare(bk, 'ru') : bk.localeCompare(ak, 'ru');
       }
+      const ak = Number(a[sortCol]) || 0, bk = Number(b[sortCol]) || 0;
       return sortDir === 'asc' ? ak - bk : bk - ak;
     });
     return sorted;
@@ -113,9 +113,17 @@ export default function HeatmapTable({
     if (!innerSortCol || !expandedOrders.length) return expandedOrders;
     const col = INNER_COLUMNS.find(c => c.key === innerSortCol);
     return [...expandedOrders].sort((a, b) => {
-      const av = a[innerSortCol] || (col?.type === 'num' ? 0 : '');
-      const bv = b[innerSortCol] || (col?.type === 'num' ? 0 : '');
-      if (col?.type === 'num') return innerSortDir === 'asc' ? av - bv : bv - av;
+      if (col?.type === 'num') {
+        const av = Number(a[innerSortCol]) || 0, bv = Number(b[innerSortCol]) || 0;
+        return innerSortDir === 'asc' ? av - bv : bv - av;
+      }
+      const av = a[innerSortCol] || '';
+      const bv = b[innerSortCol] || '';
+      // ABC — сортировка по приоритету критичности, а не по алфавиту
+      if (innerSortCol === 'abc') {
+        const ao = ABC_ORDER[av] || 99, bo = ABC_ORDER[bv] || 99;
+        return innerSortDir === 'asc' ? ao - bo : bo - ao;
+      }
       return innerSortDir === 'asc' ? String(av).localeCompare(String(bv), 'ru') : String(bv).localeCompare(String(av), 'ru');
     });
   }, [expandedOrders, innerSortCol, innerSortDir]);
