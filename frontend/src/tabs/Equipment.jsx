@@ -546,7 +546,7 @@ export default function Equipment() {
                                                               <td style={{ color: dClr, fontSize: 10, padding: '3px 6px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + pm : '—'}</td>
                                                               <td style={{ color: dClr, fontSize: 10, padding: '3px 6px', whiteSpace: 'nowrap' }}>{ord.date_end ? ord.date_end + pm : '—'}</td>
                                                               <td style={{ color: C.text, fontSize: 10, padding: '3px 6px' }}>{ord.vid}</td>
-                                                              <td style={{ color: C.muted, fontSize: 10, padding: '3px 6px', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ord.rm}>{ord.rm || '—'}</td>
+                                                              <td style={{ color: C.muted, fontSize: 10, padding: '3px 6px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ord.rm}>{ord.rm || '—'}</td>
                                                               <td style={{ color: C.muted, fontSize: 10, padding: '3px 6px' }}>{ord.stat}</td>
                                                               <td style={{ color: C.text, fontSize: 10, padding: '3px 6px', textAlign: 'right' }}>{fmtShort(ord.plan)}</td>
                                                               <td style={{ color: C.text, fontSize: 10, padding: '3px 6px', textAlign: 'right' }}>{fmtShort(ord.fact)}</td>
@@ -695,7 +695,7 @@ export default function Equipment() {
                                         <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + pm : '—'}</td>
                                         <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_end ? ord.date_end + pm : '—'}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px' }}>{ord.vid}</td>
-                                        <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ord.rm}>{ord.rm || '—'}</td>
+                                        <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ord.rm}>{ord.rm || '—'}</td>
                                         <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px' }}>{ord.stat}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                                           title={ord.text}>{ord.text}</td>
@@ -921,7 +921,7 @@ export default function Equipment() {
                                         <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + pm : '—'}</td>
                                         <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_end ? ord.date_end + pm : '—'}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px' }}>{ord.vid}</td>
-                                        <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ord.rm}>{ord.rm || '—'}</td>
+                                        <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ord.rm}>{ord.rm || '—'}</td>
                                         <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px' }}>{ord.stat}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                                           title={ord.text}>{ord.text}</td>

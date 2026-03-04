@@ -278,7 +278,7 @@ export default function HeatmapTable({
                                     <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + planMark : '—'}</td>
                                     <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_end ? ord.date_end + planMark : '—'}</td>
                                     <td style={{ color: C.text, fontSize: 11, padding: '4px 8px' }}>{ord.vid}</td>
-                                    <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ord.rm}>{ord.rm || '—'}</td>
+                                    <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ord.rm}>{ord.rm || '—'}</td>
                                     <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px' }}>{ord.stat}</td>
                                     <td style={{
                                       color: C.text, fontSize: 11, padding: '4px 8px',

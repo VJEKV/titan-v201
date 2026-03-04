@@ -114,25 +114,56 @@ def _sf(v):
     return 0.0 if pd.isna(v) else float(v)
 
 
+def _fmt_date(val):
+    """Форматировать дату для Excel."""
+    if pd.isna(val):
+        return ''
+    return val.strftime('%d.%m.%Y') if hasattr(val, 'strftime') else str(val)[:10]
+
+
+def _s(row, col):
+    """Безопасно достать строковое значение."""
+    v = row.get(col)
+    return str(v) if pd.notna(v) else ''
+
+
 def _build_orders_df(df_subset, group_label, group_value):
-    """Построить DataFrame заказов для экспорта."""
+    """Построить DataFrame заказов для экспорта — все поля."""
+    # Сработавшие методы
+    methods_acc = pd.Series('', index=df_subset.index)
+    for mn in METHODS_RISK.keys():
+        flag = f"S_{mn}"
+        short = mn.split(':')[0]
+        if flag in df_subset.columns:
+            add = df_subset[flag].map({True: short, False: ''}).fillna('')
+            methods_acc = methods_acc.where(
+                (methods_acc == '') | (add == ''),
+                methods_acc + ', '
+            ) + add
+
     rows = []
-    for _, row in df_subset.iterrows():
-        date_str = ''
-        for dc in ['Факт_Начало', 'Факт_Конец', 'Начало', 'Конец']:
-            v = row.get(dc, None)
-            if pd.notna(v):
-                date_str = v.isoformat()[:10] if hasattr(v, 'isoformat') else str(v)[:10]
-                break
+    for idx, row in df_subset.iterrows():
         rows.append({
             group_label: group_value,
-            'Номер заказа': str(row.get('ID', '')) if pd.notna(row.get('ID')) else '',
-            'Дата': date_str,
-            'Вид работ': str(row.get('Вид', '')) if pd.notna(row.get('Вид')) else '',
-            'Статус': str(row.get('STAT', '')) if pd.notna(row.get('STAT')) else '',
-            'Текст работ': str(row.get('Текст', '')) if pd.notna(row.get('Текст')) else '',
+            'Номер заказа': _s(row, 'ID'),
+            'Текст работ': _s(row, 'Текст'),
+            'Код ЕО': _s(row, 'EQUNR_Код') if 'EQUNR_Код' in df_subset.columns else '',
+            'Наименование ЕО': _s(row, 'ЕО'),
+            'ABC': _s(row, 'ABC'),
+            'Вид работ': _s(row, 'Вид'),
+            'Статус': _s(row, 'STAT'),
+            'РМ': _s(row, 'РМ'),
+            'ТМ': _s(row, 'ТМ'),
+            'INGRP': _s(row, 'INGRP'),
+            'Автор': _s(row, 'USER'),
+            'Дата начала': _fmt_date(row.get('Дата_Начало')),
+            'Дата окончания': _fmt_date(row.get('Дата_Конец')),
+            'Источник дат': _s(row, 'Источник_Дат'),
             'План ₽': _sf(row.get('Plan_N', 0)),
             'Факт ₽': _sf(row.get('Fact_N', 0)),
+            'Отклонение ₽': round(_sf(row.get('Fact_N', 0)) - _sf(row.get('Plan_N', 0)), 2),
+            'Risk Score': _sf(row.get('Risk_Sum', 0)),
+            'Методы': methods_acc.get(idx, ''),
         })
     return pd.DataFrame(rows)
 
