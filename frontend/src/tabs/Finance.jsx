@@ -10,6 +10,8 @@ import HeatmapTable from '../components/HeatmapTable';
 import Card from '../components/Card';
 import ChartSettings, { useChartSettings } from '../components/ChartSettings';
 import DateFootnote from '../components/DateFootnote';
+import StarButton from '../components/StarButton';
+import { useStarred } from '../hooks/useStarred';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "0";
@@ -51,6 +53,7 @@ const shortMonth = (label) => {
 
 export default function Finance() {
   const { sessionId, filters, thresholds } = useFilters();
+  const { toggleOrder, toggleEO, isOrderStarred, isEOStarred } = useStarred();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const csMain = useChartSettings('fin-monthly');
@@ -398,13 +401,18 @@ export default function Finance() {
                     {pareto_orders.slice(0, 50).map((r, i) => (
                       <tr key={i} style={{ borderBottom: `1px solid ${C.border}33` }}>
                         <td style={{ color: C.dim, fontSize: 12, padding: '6px 10px' }}>{i + 1}</td>
-                        <td style={{ color: C.accent, fontSize: 13, fontWeight: 600, padding: '6px 10px' }}>{r.id}</td>
+                        <td style={{ color: C.accent, fontSize: 13, fontWeight: 600, padding: '6px 10px' }}>
+                          <StarButton active={isOrderStarred(r.id)} onClick={() => toggleOrder(r.id)} size={12} />{' '}{r.id}
+                        </td>
                         <td style={{ color: C.text, fontSize: 12, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '6px 10px' }}
                           title={r.text}>{r.text}</td>
                         <td style={{ color: C.muted, fontSize: 12, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '6px 10px' }}
                           title={r.equipment_code || ''}>{r.equipment_code || '—'}</td>
                         <td style={{ color: C.muted, fontSize: 12, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '6px 10px' }}
-                          title={r.equipment_name || ''}>{r.equipment_name || '—'}</td>
+                          title={r.equipment_name || ''}>
+                          {r.equipment_name || '—'}{' '}
+                          {r.equipment_name && <StarButton active={isEOStarred(r.equipment_name)} onClick={() => toggleEO(r.equipment_name)} size={11} />}
+                        </td>
                         <td style={{ color: C.muted, fontSize: 12, padding: '6px 10px' }}>{r.vid}</td>
                         <td style={{ color: C.muted, fontSize: 12, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '6px 10px' }}
                           title={r.tm}>{r.tm}</td>

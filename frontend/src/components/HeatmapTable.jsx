@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { C, heatBg, ABC_COLORS, ABC_ORDER } from '../theme/arctic';
+import StarButton from './StarButton';
+import { useStarred } from '../hooks/useStarred';
 
 /**
  * Heatmap-таблица с RGB-градиентным фоном строк.
@@ -70,6 +72,7 @@ export default function HeatmapTable({
   onInnerSortChange = null,
   pageSize = 20,
 }) {
+  const { toggleOrder, toggleEO, isOrderStarred, isEOStarred } = useStarred();
   const [sortCol, setSortCol] = useState(null);
   const [sortDir, setSortDir] = useState('desc');
   // Сортировка внутри раскрытого списка заказов
@@ -262,9 +265,14 @@ export default function HeatmapTable({
                                   const devClr = (ord.dev || 0) > 0 ? C.danger : (ord.dev || 0) < 0 ? C.success : C.muted;
                                   return (
                                   <tr key={j} style={{ borderBottom: `1px solid ${C.border}22` }}>
-                                    <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>{ord.id}</td>
+                                    <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>
+                                      <StarButton active={isOrderStarred(ord.id)} onClick={() => toggleOrder(ord.id)} size={12} />{' '}{ord.id}
+                                    </td>
                                     <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                                      title={ord.equipment_name}>{ord.equipment_name || '—'}</td>
+                                      title={ord.equipment_name}>
+                                      {ord.equipment_name || '—'}{' '}
+                                      {ord.equipment_name && ord.equipment_name !== '—' && <StarButton active={isEOStarred(ord.equipment_name)} onClick={() => toggleEO(ord.equipment_name)} size={11} />}
+                                    </td>
                                     <td style={{ color: ABC_COLORS[ord.abc] || C.muted, fontSize: 11, fontWeight: 600, padding: '4px 8px', textAlign: 'center' }}>{ord.abc || '—'}</td>
                                     <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + planMark : '—'}</td>
                                     <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_end ? ord.date_end + planMark : '—'}</td>

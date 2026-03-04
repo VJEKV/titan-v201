@@ -9,6 +9,8 @@ import Badge from '../components/Badge';
 import Card from '../components/Card';
 import TagSelect from '../components/TagSelect';
 import DateFootnote from '../components/DateFootnote';
+import StarButton from '../components/StarButton';
+import { useStarred } from '../hooks/useStarred';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "—";
@@ -25,11 +27,15 @@ function fmtNum(v) {
 
 export default function Orders({ activeMethod, setActiveMethod }) {
   const { sessionId, filters, thresholds } = useFilters();
+  const { starredOrders, starredEO, toggleOrder, toggleEO, isOrderStarred, isEOStarred, clearAll, totalStarred } = useStarred();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState('Risk_Sum');
   const [order, setOrder] = useState('desc');
+
+  // Фильтр по избранному
+  const [starredActive, setStarredActive] = useState(false);
 
   // Быстрые фильтры
   const [qf, setQf] = useState({ author: [], tm: [], method: [], ceh: [], zavod: [], rm: [], eo: [], order_ids: [], eo_codes: [] });
@@ -113,11 +119,15 @@ export default function Orders({ activeMethod, setActiveMethod }) {
   // Формируем фильтры с quick_filters
   const buildFilters = useCallback(() => {
     const hasQf = Object.values(appliedQf).some(v => v.length > 0);
+    let result = filters;
     if (hasQf) {
-      return { ...filters, quick_filters: appliedQf };
+      result = { ...result, quick_filters: appliedQf };
     }
-    return filters;
-  }, [filters, appliedQf]);
+    if (starredActive && totalStarred > 0) {
+      result = { ...result, starred_orders: [...starredOrders], starred_eo: [...starredEO] };
+    }
+    return result;
+  }, [filters, appliedQf, starredActive, starredOrders, starredEO, totalStarred]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -127,7 +137,7 @@ export default function Orders({ activeMethod, setActiveMethod }) {
       page, page_size: 50, sort, order,
     })
       .then(setData).catch(() => {}).finally(() => setLoading(false));
-  }, [sessionId, filters, thresholds, page, sort, order, appliedQf]);
+  }, [sessionId, filters, thresholds, page, sort, order, appliedQf, starredActive, starredOrders, starredEO]);
 
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;
@@ -290,7 +300,7 @@ export default function Orders({ activeMethod, setActiveMethod }) {
             </div>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button onClick={applyQuickFilters} style={{
             padding: '8px 20px', background: C.accent, border: 'none',
             borderRadius: 6, color: C.bg, cursor: 'pointer', fontSize: 13, fontWeight: 600,
@@ -299,6 +309,30 @@ export default function Orders({ activeMethod, setActiveMethod }) {
             padding: '8px 16px', background: C.surface, border: `1px solid ${C.border}`,
             borderRadius: 6, color: C.muted, cursor: 'pointer', fontSize: 12,
           }}>Сбросить</button>
+          <div style={{ borderLeft: `1px solid ${C.border}`, height: 24, margin: '0 4px' }} />
+          <button
+            onClick={() => { setStarredActive(!starredActive); setPage(1); }}
+            style={{
+              padding: '8px 16px',
+              background: starredActive ? `${C.warning}20` : C.surface,
+              border: `1px solid ${starredActive ? C.warning : C.border}`,
+              borderRadius: 6,
+              color: starredActive ? C.warning : C.muted,
+              cursor: totalStarred > 0 ? 'pointer' : 'not-allowed',
+              fontSize: 13, fontWeight: starredActive ? 600 : 400,
+              opacity: totalStarred > 0 ? 1 : 0.5,
+            }}
+            disabled={totalStarred === 0}
+            title={totalStarred > 0 ? 'Показать только избранные заказы и ЕО' : 'Нет избранных элементов'}
+          >
+            ★ Избранное{totalStarred > 0 ? ` (${totalStarred})` : ''}
+          </button>
+          {totalStarred > 0 && (
+            <button onClick={() => { clearAll(); setStarredActive(false); }} style={{
+              padding: '8px 12px', background: C.surface, border: `1px solid ${C.border}`,
+              borderRadius: 6, color: C.dim, cursor: 'pointer', fontSize: 11,
+            }} title="Очистить все звёздочки">Очистить ★</button>
+          )}
         </div>
       </Card>
 
@@ -329,7 +363,9 @@ export default function Orders({ activeMethod, setActiveMethod }) {
                     const display = col.fmt ? col.fmt(val) : (val ?? '—');
 
                     if (col.key === 'ID') {
-                      return <td key={col.key} style={{ color: C.accent, fontSize: 13, fontWeight: 600 }}>{display}</td>;
+                      return <td key={col.key} style={{ color: C.accent, fontSize: 13, fontWeight: 600 }}>
+                        <StarButton active={isOrderStarred(val)} onClick={() => toggleOrder(val)} size={12} />{' '}{display}
+                      </td>;
                     }
                     if (col.key === 'ABC') {
                       return <td key={col.key}><Badge variant={abcColors[val] || 'muted'}>{val || '—'}</Badge></td>;
@@ -348,6 +384,17 @@ export default function Orders({ activeMethod, setActiveMethod }) {
                     if (col.key === 'Δ_Сумма') {
                       const clr = val > 0 ? C.danger : val < 0 ? C.success : C.muted;
                       return <td key={col.key} style={{ textAlign: 'right', color: clr, fontSize: 13 }}>{display}</td>;
+                    }
+                    if (col.key === 'equipment_name') {
+                      return (
+                        <td key={col.key} style={{
+                          color: C.text, fontSize: 12, maxWidth: col.width,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }} title={String(val || '')}>
+                          {display}{' '}
+                          {val && <StarButton active={isEOStarred(val)} onClick={() => toggleEO(val)} size={11} />}
+                        </td>
+                      );
                     }
                     if (col.key === 'Дата_Начало' || col.key === 'Дата_Конец') {
                       const src = row['Источник_Дат'];

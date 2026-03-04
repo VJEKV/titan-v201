@@ -91,6 +91,17 @@ async def get_orders(
     agg = compute_aggregates(df_f)
     df_f, _ = apply_risk_scoring_v2(df_f, agg, thresh)
 
+    # Фильтр по избранному (starred)
+    starred_orders = f.get('starred_orders', [])
+    starred_eo = f.get('starred_eo', [])
+    if starred_orders or starred_eo:
+        star_mask = pd.Series(False, index=df_f.index)
+        if starred_orders and 'ID' in df_f.columns:
+            star_mask |= df_f['ID'].astype(str).isin([str(x) for x in starred_orders])
+        if starred_eo and 'ЕО' in df_f.columns:
+            star_mask |= df_f['ЕО'].isin(starred_eo)
+        df_f = df_f[star_mask]
+
     # Быстрые фильтры вкладки Заказы
     quick = f.get('quick_filters', {})
     if quick:

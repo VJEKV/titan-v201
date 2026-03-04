@@ -9,6 +9,8 @@ import SectionTitle from '../components/SectionTitle';
 import Card from '../components/Card';
 import ChartSettings, { useChartSettings } from '../components/ChartSettings';
 import DonutWithLegend from '../components/DonutWithLegend';
+import StarButton from '../components/StarButton';
+import { useStarred } from '../hooks/useStarred';
 
 function fmtShort(v) {
   if (!v && v !== 0) return "0";
@@ -44,6 +46,7 @@ function sortMonthLabels(labels) {
 
 export default function Equipment() {
   const { sessionId, filters, thresholds } = useFilters();
+  const { toggleOrder, toggleEO, isOrderStarred, isEOStarred } = useStarred();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [topSort, setTopSort] = useState({ col: 'fact', dir: 'desc' });
@@ -476,7 +479,8 @@ export default function Equipment() {
                                               <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>{eo.eo}</td>
                                               <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                                                 title={eo.name}>
-                                                {isEoExpanded ? '▼ ' : '▶ '}{eo.name}
+                                                {isEoExpanded ? '▼ ' : '▶ '}{eo.name}{' '}
+                                                <StarButton active={isEOStarred(eo.name)} onClick={() => toggleEO(eo.name)} size={10} />
                                               </td>
                                               <td style={{ color: ABC_COLORS[eo.abc] || C.muted, fontSize: 11, fontWeight: 600, padding: '4px 8px' }}>{eo.abc || '—'}</td>
                                               <td style={{ color: C.text, fontSize: 11, textAlign: 'center', padding: '4px 8px' }}>{eo.n_orders}</td>
@@ -536,7 +540,9 @@ export default function Equipment() {
                                                             const ordDev = (ord.dev != null) ? ord.dev : (ord.fact || 0) - (ord.plan || 0);
                                                             return (
                                                             <tr key={k} style={{ borderBottom: `1px solid ${C.border}22` }}>
-                                                              <td style={{ color: C.accent, fontSize: 10, padding: '3px 6px', fontWeight: 600 }}>{ord.id}</td>
+                                                              <td style={{ color: C.accent, fontSize: 10, padding: '3px 6px', fontWeight: 600 }}>
+                                                                <StarButton active={isOrderStarred(ord.id)} onClick={() => toggleOrder(ord.id)} size={10} />{' '}{ord.id}
+                                                              </td>
                                                               <td style={{ color: dClr, fontSize: 10, padding: '3px 6px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + pm : '—'}</td>
                                                               <td style={{ color: dClr, fontSize: 10, padding: '3px 6px', whiteSpace: 'nowrap' }}>{ord.date_end ? ord.date_end + pm : '—'}</td>
                                                               <td style={{ color: C.text, fontSize: 10, padding: '3px 6px' }}>{ord.vid}</td>
@@ -637,7 +643,8 @@ export default function Equipment() {
                         <td onClick={() => toggleExpand(r.eo)}
                           style={{ color: C.accent, fontSize: 13, fontWeight: 600, padding: '6px 10px', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
                           title={`${r.name} — нажмите для детализации`}>
-                          {isExpanded ? '▼ ' : '▶ '}{r.name}
+                          {isExpanded ? '▼ ' : '▶ '}{r.name}{' '}
+                          <StarButton active={isEOStarred(r.name)} onClick={() => toggleEO(r.name)} size={12} />
                         </td>
                         <td style={{ color: C.muted, fontSize: 12, padding: '6px 10px' }}>{r.eo}</td>
                         <td style={{ color: ABC_COLORS[r.abc] || C.muted, fontSize: 12, fontWeight: 600, padding: '6px 10px', textAlign: 'center' }}>{r.abc || '—'}</td>
@@ -684,7 +691,9 @@ export default function Equipment() {
                                       const oDev = (ord.dev != null) ? ord.dev : (ord.fact || 0) - (ord.plan || 0);
                                       return (
                                       <tr key={j} style={{ borderBottom: `1px solid ${C.border}22` }}>
-                                        <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>{ord.id}</td>
+                                        <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>
+                                          <StarButton active={isOrderStarred(ord.id)} onClick={() => toggleOrder(ord.id)} size={11} />{' '}{ord.id}
+                                        </td>
                                         <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + pm : '—'}</td>
                                         <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_end ? ord.date_end + pm : '—'}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px' }}>{ord.vid}</td>
@@ -905,7 +914,9 @@ export default function Equipment() {
                                       const fDev = (ord.dev != null) ? ord.dev : (ord.fact || 0) - (ord.plan || 0);
                                       return (
                                       <tr key={j} style={{ borderBottom: `1px solid ${C.border}22` }}>
-                                        <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>{ord.id}</td>
+                                        <td style={{ color: C.accent, fontSize: 11, padding: '4px 8px', fontWeight: 600 }}>
+                                          <StarButton active={isOrderStarred(ord.id)} onClick={() => toggleOrder(ord.id)} size={11} />{' '}{ord.id}
+                                        </td>
                                         <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + pm : '—'}</td>
                                         <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_end ? ord.date_end + pm : '—'}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px' }}>{ord.vid}</td>

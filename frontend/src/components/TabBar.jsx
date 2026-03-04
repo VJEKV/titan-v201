@@ -1,4 +1,5 @@
 import { C } from '../theme/arctic';
+import { useStarred } from '../hooks/useStarred';
 
 /**
  * Неоновые цвета для каждой вкладки
@@ -29,6 +30,7 @@ function hexToRgb(hex) {
  * Панель вкладок — multi-color neon, на всю ширину
  */
 export default function TabBar({ activeTab, onTabChange }) {
+  const { totalStarred } = useStarred();
   return (
     <div style={{
       display: 'flex',
@@ -97,6 +99,23 @@ export default function TabBar({ activeTab, onTabChange }) {
           >
             <span style={{ fontSize: 17, marginRight: 6, lineHeight: 1 }}>{tab.icon}</span>
             {tab.label}
+            {tab.id === 'orders' && totalStarred > 0 && (
+              <span style={{
+                marginLeft: 5,
+                padding: '1px 6px',
+                borderRadius: 10,
+                fontSize: 10,
+                fontWeight: 700,
+                background: C.warning,
+                color: '#0f172a',
+                lineHeight: '16px',
+                minWidth: 18,
+                textAlign: 'center',
+                display: 'inline-block',
+              }}>
+                {totalStarred}
+              </span>
+            )}
           </button>
         );
       })}

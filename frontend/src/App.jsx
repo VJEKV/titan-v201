@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FiltersProvider, useFilters } from './hooks/useFilters';
+import { StarredProvider } from './hooks/useStarred';
 import { C } from './theme/arctic';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
@@ -140,7 +141,9 @@ function AppContent() {
 export default function App() {
   return (
     <FiltersProvider>
-      <AppContent />
+      <StarredProvider>
+        <AppContent />
+      </StarredProvider>
     </FiltersProvider>
   );
 }
