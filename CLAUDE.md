@@ -449,28 +449,55 @@ DQ_Risk        = балл некачественности данных (0-10)
 
 ## 9. ЗАПУСК НА ПК (Windows)
 
-### 9.1 Backend
+### 9.1 Структура на флешке / диске пользователя
+
+```
+D:\AI\TITAN\                     ← корень
+├── START.bat                    # Запуск сервера + открытие браузера
+├── STOP.bat                     # Остановка сервера (убивает python.exe)
+├── UPDATE.bat                   # Обновление с GitHub (titan-v201)
+├── python\                      # Portable Python 3.11+
+│   └── python.exe               # НЕ pythonw.exe — нужен именно python.exe
+└── titan-v200\                  # Проект (backend + frontend/dist)
+    ├── backend\
+    └── frontend\
+```
+
+### 9.2 BAT-файлы
+
+**START.bat:**
+- Убивает старые процессы python.exe/pythonw.exe
+- Проверяет свободность порта 8000
+- Запускает `python.exe -m uvicorn main:app` через `start /min` (консоль свёрнута)
+- Ждёт 5 сек, открывает `http://127.0.0.1:8000` в браузере
+- ВАЖНО: используется `python.exe` (не `pythonw.exe` — его нет в portable-сборке)
+
+**STOP.bat:**
+- `taskkill /f /im python.exe` + `pythonw.exe`
+
+**UPDATE.bat:**
+- Скачивает `https://github.com/VJEKV/titan-v201/archive/refs/heads/main.zip`
+- Распаковывает, заменяет `titan-v200/backend` и `titan-v200/frontend`
+- Сохраняет и восстанавливает `.env`
+- Обновляет сами .bat файлы из архива
+
+### 9.3 Разработка (dev-режим)
 
 ```bash
+# Backend
 cd backend
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 # → http://localhost:8000
 # → http://localhost:8000/docs (Swagger UI)
-```
 
-### 9.2 Frontend
-
-```bash
+# Frontend
 cd frontend
 npm install
 npm run dev
 # → http://localhost:5173
 ```
 
-### 9.3 Production (один процесс)
+### 9.4 Production (один процесс)
 
 ```python
 # backend/main.py — раздача собранного React
