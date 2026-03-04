@@ -53,6 +53,7 @@ export default function Planners() {
   const [ingrpTotal, setIngrpTotal] = useState(0);
   const [ingrpPage, setIngrpPage] = useState(1);
   const [ingrpLoading, setIngrpLoading] = useState(false);
+  const [ingrpSort, setIngrpSort] = useState({ col: 'date_start', dir: 'desc' });
 
   // Аккордеон USER
   const [userExpanded, setUserExpanded] = useState(null);
@@ -60,21 +61,23 @@ export default function Planners() {
   const [userTotal, setUserTotal] = useState(0);
   const [userPage, setUserPage] = useState(1);
   const [userLoading, setUserLoading] = useState(false);
+  const [userSort, setUserSort] = useState({ col: 'date_start', dir: 'desc' });
 
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
     apiGet('/api/tab/planners', { session_id: sessionId, filters, thresholds })
       .then(setData).catch(() => {}).finally(() => setLoading(false));
-    setIngrpExpanded(null); setIngrpOrders([]); setIngrpPage(1);
-    setUserExpanded(null); setUserOrders([]); setUserPage(1);
+    setIngrpExpanded(null); setIngrpOrders([]); setIngrpPage(1); setIngrpSort({ col: 'date_start', dir: 'desc' });
+    setUserExpanded(null); setUserOrders([]); setUserPage(1); setUserSort({ col: 'date_start', dir: 'desc' });
   }, [sessionId, filters, thresholds]);
 
-  const fetchIngrpOrders = (name, page) => {
+  const fetchIngrpOrders = (name, page, sort = ingrpSort) => {
     setIngrpLoading(true);
     apiGet('/api/planners/orders', {
       session_id: sessionId, filters, thresholds,
       ingrp: name, page, page_size: 20,
+      sort_by: sort.col, sort_dir: sort.dir,
     })
       .then(res => { setIngrpOrders(res.orders || []); setIngrpTotal(res.total || 0); })
       .catch(() => { setIngrpOrders([]); setIngrpTotal(0); })
@@ -82,15 +85,20 @@ export default function Planners() {
   };
   const toggleIngrpExpand = (name) => {
     if (ingrpExpanded === name) { setIngrpExpanded(null); setIngrpOrders([]); setIngrpTotal(0); setIngrpPage(1); return; }
-    setIngrpExpanded(name); setIngrpPage(1); fetchIngrpOrders(name, 1);
+    const s = { col: 'date_start', dir: 'desc' }; setIngrpSort(s);
+    setIngrpExpanded(name); setIngrpPage(1); fetchIngrpOrders(name, 1, s);
   };
   const handleIngrpPage = (p) => { setIngrpPage(p); fetchIngrpOrders(ingrpExpanded, p); };
+  const handleIngrpSortChange = (col, dir) => {
+    const s = { col, dir }; setIngrpSort(s); setIngrpPage(1); fetchIngrpOrders(ingrpExpanded, 1, s);
+  };
 
-  const fetchUserOrders = (name, page) => {
+  const fetchUserOrders = (name, page, sort = userSort) => {
     setUserLoading(true);
     apiGet('/api/planners/user_orders', {
       session_id: sessionId, filters, thresholds,
       user: name, page, page_size: 20,
+      sort_by: sort.col, sort_dir: sort.dir,
     })
       .then(res => { setUserOrders(res.orders || []); setUserTotal(res.total || 0); })
       .catch(() => { setUserOrders([]); setUserTotal(0); })
@@ -98,9 +106,13 @@ export default function Planners() {
   };
   const toggleUserExpand = (name) => {
     if (userExpanded === name) { setUserExpanded(null); setUserOrders([]); setUserTotal(0); setUserPage(1); return; }
-    setUserExpanded(name); setUserPage(1); fetchUserOrders(name, 1);
+    const s = { col: 'date_start', dir: 'desc' }; setUserSort(s);
+    setUserExpanded(name); setUserPage(1); fetchUserOrders(name, 1, s);
   };
   const handleUserPage = (p) => { setUserPage(p); fetchUserOrders(userExpanded, p); };
+  const handleUserSortChange = (col, dir) => {
+    const s = { col, dir }; setUserSort(s); setUserPage(1); fetchUserOrders(userExpanded, 1, s);
+  };
 
   const exportIngrpExcel = (name) => {
     apiDownload('/api/export/orders_excel', {
@@ -188,7 +200,8 @@ export default function Planners() {
           expandedName={ingrpExpanded} onToggleExpand={toggleIngrpExpand}
           expandedOrders={ingrpOrders} expandedTotal={ingrpTotal}
           expandedLoading={ingrpLoading} expandedPage={ingrpPage}
-          onPageChange={handleIngrpPage} onExportExcel={exportIngrpExcel} />
+          onPageChange={handleIngrpPage} onExportExcel={exportIngrpExcel}
+          onInnerSortChange={handleIngrpSortChange} />
       </Card>
 
 {/* Сводная — бублик */}
@@ -222,7 +235,8 @@ export default function Planners() {
             expandedName={userExpanded} onToggleExpand={toggleUserExpand}
             expandedOrders={userOrders} expandedTotal={userTotal}
             expandedLoading={userLoading} expandedPage={userPage}
-            onPageChange={handleUserPage} onExportExcel={exportUserExcel} />
+            onPageChange={handleUserPage} onExportExcel={exportUserExcel}
+            onInnerSortChange={handleUserSortChange} />
         </Card>
       )}
 

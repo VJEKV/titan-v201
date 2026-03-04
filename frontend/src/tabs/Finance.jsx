@@ -66,6 +66,7 @@ export default function Finance() {
   const [cehTotal, setCehTotal] = useState(0);
   const [cehPage, setCehPage] = useState(1);
   const [cehLoading, setCehLoading] = useState(false);
+  const [cehSort, setCehSort] = useState({ col: 'date_start', dir: 'desc' });
 
   // Аккордеон ТМ
   const [tmExpanded, setTmExpanded] = useState(null);
@@ -73,6 +74,7 @@ export default function Finance() {
   const [tmTotal, setTmTotal] = useState(0);
   const [tmPage, setTmPage] = useState(1);
   const [tmLoading, setTmLoading] = useState(false);
+  const [tmSort, setTmSort] = useState({ col: 'date_start', dir: 'desc' });
 
   useEffect(() => {
     if (!sessionId) return;
@@ -82,16 +84,17 @@ export default function Finance() {
       .catch(() => {})
       .finally(() => setLoading(false));
     // Сбросить аккордеон при смене фильтров
-    setCehExpanded(null); setCehOrders([]); setCehPage(1);
-    setTmExpanded(null); setTmOrders([]); setTmPage(1);
+    setCehExpanded(null); setCehOrders([]); setCehPage(1); setCehSort({ col: 'date_start', dir: 'desc' });
+    setTmExpanded(null); setTmOrders([]); setTmPage(1); setTmSort({ col: 'date_start', dir: 'desc' });
   }, [sessionId, filters, thresholds]);
 
   // --- Функции аккордеона ЦЕХ ---
-  const fetchCehOrders = (name, page) => {
+  const fetchCehOrders = (name, page, sort = cehSort) => {
     setCehLoading(true);
     apiGet('/api/finance/orders', {
       session_id: sessionId, filters, thresholds,
       group_by: 'ceh', group_value: name, page, page_size: 20,
+      sort_by: sort.col, sort_dir: sort.dir,
     })
       .then(res => { setCehOrders(res.orders || []); setCehTotal(res.total || 0); })
       .catch(() => { setCehOrders([]); setCehTotal(0); })
@@ -99,16 +102,21 @@ export default function Finance() {
   };
   const toggleCehExpand = (name) => {
     if (cehExpanded === name) { setCehExpanded(null); setCehOrders([]); setCehTotal(0); setCehPage(1); return; }
-    setCehExpanded(name); setCehPage(1); fetchCehOrders(name, 1);
+    const s = { col: 'date_start', dir: 'desc' }; setCehSort(s);
+    setCehExpanded(name); setCehPage(1); fetchCehOrders(name, 1, s);
   };
   const handleCehPage = (p) => { setCehPage(p); fetchCehOrders(cehExpanded, p); };
+  const handleCehSortChange = (col, dir) => {
+    const s = { col, dir }; setCehSort(s); setCehPage(1); fetchCehOrders(cehExpanded, 1, s);
+  };
 
   // --- Функции аккордеона ТМ ---
-  const fetchTmOrders = (name, page) => {
+  const fetchTmOrders = (name, page, sort = tmSort) => {
     setTmLoading(true);
     apiGet('/api/finance/orders', {
       session_id: sessionId, filters, thresholds,
       group_by: 'tm', group_value: name, page, page_size: 20,
+      sort_by: sort.col, sort_dir: sort.dir,
     })
       .then(res => { setTmOrders(res.orders || []); setTmTotal(res.total || 0); })
       .catch(() => { setTmOrders([]); setTmTotal(0); })
@@ -116,9 +124,13 @@ export default function Finance() {
   };
   const toggleTmExpand = (name) => {
     if (tmExpanded === name) { setTmExpanded(null); setTmOrders([]); setTmTotal(0); setTmPage(1); return; }
-    setTmExpanded(name); setTmPage(1); fetchTmOrders(name, 1);
+    const s = { col: 'date_start', dir: 'desc' }; setTmSort(s);
+    setTmExpanded(name); setTmPage(1); fetchTmOrders(name, 1, s);
   };
   const handleTmPage = (p) => { setTmPage(p); fetchTmOrders(tmExpanded, p); };
+  const handleTmSortChange = (col, dir) => {
+    const s = { col, dir }; setTmSort(s); setTmPage(1); fetchTmOrders(tmExpanded, 1, s);
+  };
 
   const exportCehExcel = (name) => {
     apiDownload('/api/export/orders_excel', {
@@ -283,7 +295,8 @@ export default function Finance() {
             expandedName={cehExpanded} onToggleExpand={toggleCehExpand}
             expandedOrders={cehOrders} expandedTotal={cehTotal}
             expandedLoading={cehLoading} expandedPage={cehPage}
-            onPageChange={handleCehPage} onExportExcel={exportCehExcel} />
+            onPageChange={handleCehPage} onExportExcel={exportCehExcel}
+            onInnerSortChange={handleCehSortChange} />
         </Card>
       )}
 
@@ -295,7 +308,8 @@ export default function Finance() {
             expandedName={tmExpanded} onToggleExpand={toggleTmExpand}
             expandedOrders={tmOrders} expandedTotal={tmTotal}
             expandedLoading={tmLoading} expandedPage={tmPage}
-            onPageChange={handleTmPage} onExportExcel={exportTmExcel} />
+            onPageChange={handleTmPage} onExportExcel={exportTmExcel}
+            onInnerSortChange={handleTmSortChange} />
         </Card>
       )}
 

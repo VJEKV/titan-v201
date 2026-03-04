@@ -67,6 +67,7 @@ export default function HeatmapTable({
   expandedPage = 1,
   onPageChange = null,
   onExportExcel = null,
+  onInnerSortChange = null,
   pageSize = 20,
 }) {
   const [sortCol, setSortCol] = useState(null);
@@ -100,13 +101,24 @@ export default function HeatmapTable({
   }, [data, sortCol, sortDir, nameKey]);
 
   const handleInnerSort = (colKey) => {
+    let newDir;
     if (innerSortCol === colKey) {
-      setInnerSortDir(d => d === 'asc' ? 'desc' : 'asc');
+      newDir = innerSortDir === 'asc' ? 'desc' : 'asc';
+      setInnerSortDir(newDir);
     } else {
-      setInnerSortCol(colKey);
       const col = INNER_COLUMNS.find(c => c.key === colKey);
-      setInnerSortDir(col && col.type === 'num' ? 'desc' : 'asc');
+      newDir = col && col.type === 'num' ? 'desc' : 'asc';
+      setInnerSortCol(colKey);
+      setInnerSortDir(newDir);
     }
+    if (onInnerSortChange) onInnerSortChange(colKey, newDir);
+  };
+
+  /** Преобразование dd.mm.yyyy → yyyymmdd для корректной сортировки дат */
+  const dateToSortable = (s) => {
+    if (!s) return '00000000';
+    const p = s.split('.');
+    return p.length === 3 ? `${p[2]}${p[1]}${p[0]}` : s;
   };
 
   const sortedOrders = useMemo(() => {
@@ -119,10 +131,15 @@ export default function HeatmapTable({
       }
       const av = a[innerSortCol] || '';
       const bv = b[innerSortCol] || '';
-      // ABC — сортировка по приоритету критичности, а не по алфавиту
+      // ABC — сортировка по приоритету критичности
       if (innerSortCol === 'abc') {
         const ao = ABC_ORDER[av] || 99, bo = ABC_ORDER[bv] || 99;
         return innerSortDir === 'asc' ? ao - bo : bo - ao;
+      }
+      // Даты dd.mm.yyyy — преобразуем для корректного сравнения
+      if (innerSortCol === 'date_start' || innerSortCol === 'date_end') {
+        const da = dateToSortable(av), db = dateToSortable(bv);
+        return innerSortDir === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
       }
       return innerSortDir === 'asc' ? String(av).localeCompare(String(bv), 'ru') : String(bv).localeCompare(String(av), 'ru');
     });

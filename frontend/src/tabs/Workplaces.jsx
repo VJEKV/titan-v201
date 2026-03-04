@@ -41,20 +41,22 @@ export default function Workplaces() {
   const [rmTotal, setRmTotal] = useState(0);
   const [rmPage, setRmPage] = useState(1);
   const [rmLoading, setRmLoading] = useState(false);
+  const [rmSort, setRmSort] = useState({ col: 'date_start', dir: 'desc' });
 
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
     apiGet('/api/tab/workplaces', { session_id: sessionId, filters, thresholds })
       .then(setData).catch(() => {}).finally(() => setLoading(false));
-    setRmExpanded(null); setRmOrders([]); setRmPage(1);
+    setRmExpanded(null); setRmOrders([]); setRmPage(1); setRmSort({ col: 'date_start', dir: 'desc' });
   }, [sessionId, filters, thresholds]);
 
-  const fetchRmOrders = (name, page) => {
+  const fetchRmOrders = (name, page, sort = rmSort) => {
     setRmLoading(true);
     apiGet('/api/workplaces/orders', {
       session_id: sessionId, filters, thresholds,
       rm: name, page, page_size: 20,
+      sort_by: sort.col, sort_dir: sort.dir,
     })
       .then(res => { setRmOrders(res.orders || []); setRmTotal(res.total || 0); })
       .catch(() => { setRmOrders([]); setRmTotal(0); })
@@ -62,9 +64,13 @@ export default function Workplaces() {
   };
   const toggleRmExpand = (name) => {
     if (rmExpanded === name) { setRmExpanded(null); setRmOrders([]); setRmTotal(0); setRmPage(1); return; }
-    setRmExpanded(name); setRmPage(1); fetchRmOrders(name, 1);
+    const s = { col: 'date_start', dir: 'desc' }; setRmSort(s);
+    setRmExpanded(name); setRmPage(1); fetchRmOrders(name, 1, s);
   };
   const handleRmPage = (p) => { setRmPage(p); fetchRmOrders(rmExpanded, p); };
+  const handleRmSortChange = (col, dir) => {
+    const s = { col, dir }; setRmSort(s); setRmPage(1); fetchRmOrders(rmExpanded, 1, s);
+  };
 
   const exportRmExcel = (name) => {
     apiDownload('/api/export/orders_excel', {
@@ -165,7 +171,8 @@ export default function Workplaces() {
             expandedName={rmExpanded} onToggleExpand={toggleRmExpand}
             expandedOrders={rmOrders} expandedTotal={rmTotal}
             expandedLoading={rmLoading} expandedPage={rmPage}
-            onPageChange={handleRmPage} onExportExcel={exportRmExcel} />
+            onPageChange={handleRmPage} onExportExcel={exportRmExcel}
+            onInnerSortChange={handleRmSortChange} />
         </Card>
       )}
 
@@ -176,7 +183,8 @@ export default function Workplaces() {
             expandedName={rmExpanded} onToggleExpand={toggleRmExpand}
             expandedOrders={rmOrders} expandedTotal={rmTotal}
             expandedLoading={rmLoading} expandedPage={rmPage}
-            onPageChange={handleRmPage} onExportExcel={exportRmExcel} />
+            onPageChange={handleRmPage} onExportExcel={exportRmExcel}
+            onInnerSortChange={handleRmSortChange} />
         </Card>
       )}
     </div>

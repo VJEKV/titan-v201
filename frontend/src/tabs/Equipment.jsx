@@ -520,7 +520,14 @@ export default function Equipment() {
                                                         <tbody>
                                                           {[...classEoOrders].sort((a, b) => {
                                                             const dir = classOrdSort.dir === 'desc' ? -1 : 1;
-                                                            const av = a[classOrdSort.col], bv = b[classOrdSort.col];
+                                                            const col = classOrdSort.col;
+                                                            if (col === 'date_start' || col === 'date_end') {
+                                                              const pa = (a[col]||'').split('.'), pb = (b[col]||'').split('.');
+                                                              const da = pa.length===3 ? `${pa[2]}${pa[1]}${pa[0]}` : a[col]||'';
+                                                              const db = pb.length===3 ? `${pb[2]}${pb[1]}${pb[0]}` : b[col]||'';
+                                                              return dir * da.localeCompare(db);
+                                                            }
+                                                            const av = a[col], bv = b[col];
                                                             if (typeof av === 'string') return dir * (av || '').localeCompare(bv || '');
                                                             return dir * ((av || 0) - (bv || 0));
                                                           }).map((ord, k) => {

@@ -69,6 +69,36 @@ def _build_orders_list(df_subset):
     return orders
 
 
+ABC_PRIORITY = {
+    "Оч.высокая/Особокрит": 1, "Оч.высокая": 1, "Особокритичное": 1,
+    "A": 2, "Высококритичное": 2, "Высокая": 2,
+    "B": 3, "Средней критичности": 3, "Средняя": 3, "Средней крит.": 3,
+    "Низкой критичности": 4,
+    "C": 5, "Не критично": 5,
+    "Н/Д": 6, "Пусто": 7,
+}
+
+
+def _sort_orders(orders, sort_by='date_start', sort_dir='desc'):
+    """Сортировка списка заказов по указанному полю."""
+    reverse = sort_dir == 'desc'
+    if sort_by in ('plan', 'fact', 'dev'):
+        orders.sort(key=lambda x: x.get(sort_by, 0) or 0, reverse=reverse)
+    elif sort_by in ('date_start', 'date_end'):
+        def _dk(x):
+            s = x.get(sort_by, '')
+            if not s:
+                return '0000.00.00'
+            p = s.split('.')
+            return f"{p[2]}.{p[1]}.{p[0]}" if len(p) == 3 else s
+        orders.sort(key=_dk, reverse=reverse)
+    elif sort_by == 'abc':
+        orders.sort(key=lambda x: ABC_PRIORITY.get(x.get('abc', ''), 99), reverse=reverse)
+    else:
+        orders.sort(key=lambda x: str(x.get(sort_by, '')).lower(), reverse=reverse)
+    return orders
+
+
 def _get_df(session_id, filters_str, thresholds_str):
     """Общая логика получения отфильтрованного DataFrame."""
     session = get_session(session_id)
@@ -284,6 +314,8 @@ async def get_finance_orders(
     group_value: str = Query(...),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    sort_by: str = Query("date_start"),
+    sort_dir: str = Query("desc"),
 ):
     """Заказы по конкретному ЦЕХ или ТМ для аккордеона, с пагинацией."""
     df_f, _ = _get_df(session_id, filters, thresholds)
@@ -302,7 +334,7 @@ async def get_finance_orders(
 
     df_group = df_f[df_f[col].astype(str) == str(group_value)]
     orders = _build_orders_list(df_group)
-    orders.sort(key=lambda x: x['date'], reverse=True)
+    _sort_orders(orders, sort_by, sort_dir)
 
     total = len(orders)
     start = (page - 1) * page_size
