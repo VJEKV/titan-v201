@@ -59,12 +59,14 @@ def _build_orders_list(df_subset):
         de_val = row.get('Дата_Конец')
         date_start_str = ds_val.strftime('%d.%m.%Y') if pd.notna(ds_val) and hasattr(ds_val, 'strftime') else ''
         date_end_str = de_val.strftime('%d.%m.%Y') if pd.notna(de_val) and hasattr(de_val, 'strftime') else ''
+        rm = str(row.get('РМ', '')) if pd.notna(row.get('РМ')) else ''
         orders.append({
             "id": order_id, "text": text, "vid": vid,
             "date": date_str, "fact": fact, "plan": plan, "stat": stat,
             "dev": round(fact - plan, 2),
             "abc": abc, "equipment_name": eo_name, "equipment_code": eo_code,
             "date_start": date_start_str, "date_end": date_end_str, "date_source": date_source,
+            "rm": rm,
         })
     return orders
 

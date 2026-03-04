@@ -399,8 +399,8 @@ export default function Equipment() {
       {/* 2. Таблица классов оборудования */}
       {classes_data.length > 0 && (
         <Card title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>2. Классы оборудования — метрики <ChartSettings chartId="eq-classes" chartTypes={[{value:'hbar',label:'Горизонт.'},{value:'vbar',label:'Вертикал.'},{value:'line',label:'Линия'}]} currentChartType={classesChartType} onChartTypeChange={setClassesChartType} /></span>}>
-          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-            <div style={{ flex: '1 1 500px', overflowX: 'auto' }}>
+          <div>
+            <div style={{ overflowX: 'auto' }}>
               <table>
                 <thead>
                   <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
@@ -513,7 +513,7 @@ export default function Equipment() {
                                                       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                                         <thead>
                                                           <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                                            {[{key:'id',label:'Заказ'},{key:'date_start',label:'Дата нач.'},{key:'date_end',label:'Дата кон.'},{key:'vid',label:'Вид работ'},{key:'stat',label:'Статус'},{key:'plan',label:'План ₽'},{key:'fact',label:'Факт ₽'},{key:'dev',label:'Откл. ₽'}].map(h => (
+                                                            {[{key:'id',label:'Заказ'},{key:'date_start',label:'Дата нач.'},{key:'date_end',label:'Дата кон.'},{key:'vid',label:'Вид работ'},{key:'rm',label:'РМ'},{key:'stat',label:'Статус'},{key:'plan',label:'План ₽'},{key:'fact',label:'Факт ₽'},{key:'dev',label:'Откл. ₽'}].map(h => (
                                                               <th key={h.key} onClick={(e) => { e.stopPropagation(); handleClassOrdSort(h.key); }}
                                                                 style={{ color: classOrdSort.col === h.key ? C.accent : C.dim, fontSize: 10, padding: '4px 6px', textAlign: 'left', fontWeight: 600, cursor: 'pointer', userSelect: 'none' }}>
                                                                 {h.label} {classOrdSort.col === h.key ? (classOrdSort.dir === 'desc' ? '▼' : '▲') : ''}
@@ -546,6 +546,7 @@ export default function Equipment() {
                                                               <td style={{ color: dClr, fontSize: 10, padding: '3px 6px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + pm : '—'}</td>
                                                               <td style={{ color: dClr, fontSize: 10, padding: '3px 6px', whiteSpace: 'nowrap' }}>{ord.date_end ? ord.date_end + pm : '—'}</td>
                                                               <td style={{ color: C.text, fontSize: 10, padding: '3px 6px' }}>{ord.vid}</td>
+                                                              <td style={{ color: C.muted, fontSize: 10, padding: '3px 6px', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ord.rm}>{ord.rm || '—'}</td>
                                                               <td style={{ color: C.muted, fontSize: 10, padding: '3px 6px' }}>{ord.stat}</td>
                                                               <td style={{ color: C.text, fontSize: 10, padding: '3px 6px', textAlign: 'right' }}>{fmtShort(ord.plan)}</td>
                                                               <td style={{ color: C.text, fontSize: 10, padding: '3px 6px', textAlign: 'right' }}>{fmtShort(ord.fact)}</td>
@@ -578,9 +579,6 @@ export default function Equipment() {
                   })}
                 </tbody>
               </table>
-            </div>
-            <div style={{ flex: '1 1 380px' }}>
-              {renderClassesChart()}
             </div>
           </div>
         </Card>
@@ -679,7 +677,7 @@ export default function Equipment() {
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                   <thead>
                                     <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                      {['Заказ', 'Дата нач.', 'Дата кон.', 'Вид работ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽', 'Откл. ₽'].map(h => (
+                                      {['Заказ', 'Дата нач.', 'Дата кон.', 'Вид работ', 'РМ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽', 'Откл. ₽'].map(h => (
                                         <th key={h} style={{ color: C.dim, fontSize: 10, padding: '4px 8px', textAlign: 'left', fontWeight: 600 }}>{h}</th>
                                       ))}
                                     </tr>
@@ -697,6 +695,7 @@ export default function Equipment() {
                                         <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + pm : '—'}</td>
                                         <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_end ? ord.date_end + pm : '—'}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px' }}>{ord.vid}</td>
+                                        <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ord.rm}>{ord.rm || '—'}</td>
                                         <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px' }}>{ord.stat}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                                           title={ord.text}>{ord.text}</td>
@@ -902,7 +901,7 @@ export default function Equipment() {
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                   <thead>
                                     <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                      {['Заказ', 'Дата нач.', 'Дата кон.', 'Вид работ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽', 'Откл. ₽'].map(h => (
+                                      {['Заказ', 'Дата нач.', 'Дата кон.', 'Вид работ', 'РМ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽', 'Откл. ₽'].map(h => (
                                         <th key={h} style={{ color: C.dim, fontSize: 10, padding: '4px 8px', textAlign: 'left', fontWeight: 600 }}>{h}</th>
                                       ))}
                                     </tr>
@@ -920,6 +919,7 @@ export default function Equipment() {
                                         <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + pm : '—'}</td>
                                         <td style={{ color: dClr, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.date_end ? ord.date_end + pm : '—'}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px' }}>{ord.vid}</td>
+                                        <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ord.rm}>{ord.rm || '—'}</td>
                                         <td style={{ color: C.muted, fontSize: 11, padding: '4px 8px' }}>{ord.stat}</td>
                                         <td style={{ color: C.text, fontSize: 11, padding: '4px 8px', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                                           title={ord.text}>{ord.text}</td>
