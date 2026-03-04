@@ -51,9 +51,25 @@ export default function DonutWithLegend({
               ))}
             </Pie>
             <Tooltip
-              contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontFamily }}
-              itemStyle={{ color: C.text }}
-              formatter={v => [`${fmtShort(v)} ₽`]}
+              content={({ active, payload }) => {
+                if (!active || !payload || !payload[0]) return null;
+                const d = payload[0].payload;
+                const clr = payload[0].payload.fill || colors[data.indexOf(d)] || C.accent;
+                const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0';
+                return (
+                  <div style={{
+                    background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8,
+                    padding: '10px 14px', fontFamily, minWidth: 180,
+                  }}>
+                    <div style={{ color: clr, fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{d.name}</div>
+                    <div style={{ color: C.text, fontSize: 12, marginBottom: 3 }}>Сумма: <b>{fmtNum(d.value)} ₽</b></div>
+                    <div style={{ color: C.text, fontSize: 12, marginBottom: 3 }}>Доля: <b>{d.pct != null ? d.pct : pct}%</b></div>
+                    {d.count != null && (
+                      <div style={{ color: C.text, fontSize: 12 }}>Заказов: <b>{fmtNum(d.count)}</b></div>
+                    )}
+                  </div>
+                );
+              }}
             />
           </PieChart>
         </ResponsiveContainer>
