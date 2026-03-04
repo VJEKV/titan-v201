@@ -14,7 +14,7 @@ if %errorlevel%==0 (
 )
 
 echo Запуск TITAN Аудит ТОРО...
-start "" "%~dp0python\python.exe" -m uvicorn main:app --host 127.0.0.1 --port 8000
+start /min "" "%~dp0python\python.exe" -m uvicorn main:app --host 127.0.0.1 --port 8000
 
 :: Ожидание запуска сервера
 ping -n 5 127.0.0.1 >nul
