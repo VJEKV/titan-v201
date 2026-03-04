@@ -74,14 +74,28 @@ export default function Equipment() {
       .finally(() => setExpandedLoading(false));
   };
 
-  // Аккордион классов: уровень 1 (какой класс раскрыт)
+  // Аккордион классов: уровень 1 (какой класс раскрыт) + сортировка
   const [expandedClass, setExpandedClass] = useState(null);
   const [classEoList, setClassEoList] = useState([]);
   const [classEoLoading, setClassEoLoading] = useState(false);
-  // Аккордион классов: уровень 2 (какой ЕО раскрыт)
+  const [classSort, setClassSort] = useState({ col: 'fact', dir: 'desc' });
+  // Аккордион классов: уровень 2 (какой ЕО раскрыт) + сортировка
   const [expandedClassEo, setExpandedClassEo] = useState(null);
   const [classEoOrders, setClassEoOrders] = useState([]);
   const [classEoOrdersLoading, setClassEoOrdersLoading] = useState(false);
+  const [classEoSort, setClassEoSort] = useState({ col: 'fact', dir: 'desc' });
+  // Уровень 3: сортировка заказов
+  const [classOrdSort, setClassOrdSort] = useState({ col: 'date_start', dir: 'desc' });
+
+  const handleClassSort = (col) => {
+    setClassSort(prev => prev.col === col ? { col, dir: prev.dir === 'desc' ? 'asc' : 'desc' } : { col, dir: col === 'class_name' ? 'asc' : 'desc' });
+  };
+  const handleClassEoSort = (col) => {
+    setClassEoSort(prev => prev.col === col ? { col, dir: prev.dir === 'desc' ? 'asc' : 'desc' } : { col, dir: col === 'name' || col === 'eo' ? 'asc' : 'desc' });
+  };
+  const handleClassOrdSort = (col) => {
+    setClassOrdSort(prev => prev.col === col ? { col, dir: prev.dir === 'desc' ? 'asc' : 'desc' } : { col, dir: col === 'id' || col === 'vid' || col === 'stat' ? 'asc' : 'desc' });
+  };
 
   const toggleClassExpand = (className) => {
     if (expandedClass === className) {
@@ -91,6 +105,7 @@ export default function Equipment() {
     }
     setExpandedClass(className);
     setExpandedClassEo(null); setClassEoOrders([]);
+    setClassEoSort({ col: 'fact', dir: 'desc' });
     setClassEoLoading(true);
     apiGet('/api/equipment/by-class', { session_id: sessionId, filters, thresholds, class_name: className })
       .then(res => setClassEoList(res.items || []))
@@ -104,6 +119,7 @@ export default function Equipment() {
       return;
     }
     setExpandedClassEo(eoCode);
+    setClassOrdSort({ col: 'date_start', dir: 'desc' });
     setClassEoOrdersLoading(true);
     apiGet('/api/equipment/orders', { session_id: sessionId, filters, thresholds, eo_code: eoCode })
       .then(res => setClassEoOrders(res.orders || []))
@@ -384,13 +400,21 @@ export default function Equipment() {
               <table>
                 <thead>
                   <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
-                    {['Класс', 'ЕО', 'Заказов', 'План ₽', 'Факт ₽', 'Откл. ₽'].map(h => (
-                      <th key={h} style={{ color: C.muted, fontSize: 11, padding: '8px 10px', whiteSpace: 'nowrap' }}>{h}</th>
+                    {[{key:'class_name',label:'Класс'},{key:'n_eo',label:'ЕО'},{key:'n_orders',label:'Заказов'},{key:'plan',label:'План ₽'},{key:'fact',label:'Факт ₽'},{key:'dev',label:'Откл. ₽'},{key:'',label:''}].map(h => (
+                      <th key={h.key||h.label} onClick={h.key ? () => handleClassSort(h.key) : undefined}
+                        style={{ color: classSort.col === h.key ? C.accent : C.muted, fontSize: 11, padding: '8px 10px', whiteSpace: 'nowrap', cursor: h.key ? 'pointer' : 'default', userSelect: 'none' }}>
+                        {h.label} {classSort.col === h.key ? (classSort.dir === 'desc' ? '▼' : '▲') : ''}
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {classes_data.map((r, i) => {
+                  {[...classes_data].sort((a, b) => {
+                    const dir = classSort.dir === 'desc' ? -1 : 1;
+                    const av = a[classSort.col], bv = b[classSort.col];
+                    if (typeof av === 'string') return dir * av.localeCompare(bv);
+                    return dir * ((av || 0) - (bv || 0));
+                  }).map((r, i) => {
                     const isClassExpanded = expandedClass === r.class_name;
                     return (
                       <React.Fragment key={i}>
@@ -405,10 +429,16 @@ export default function Equipment() {
                           <td style={{ color: r.dev > 0 ? C.danger : r.dev < 0 ? C.success : C.muted, fontSize: 12, textAlign: 'right', padding: '6px 10px', fontWeight: 600 }}>
                             {r.dev > 0 ? '+' : ''}{fmtShort(r.dev)} ₽
                           </td>
+                          <td style={{ padding: '6px 10px' }} onClick={e => e.stopPropagation()}>
+                            <button onClick={() => apiDownload('/api/export/equipment-class-excel', { session_id: sessionId, filters, thresholds, class_name: r.class_name })}
+                              style={{ padding: '2px 8px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 4, color: C.accent, cursor: 'pointer', fontSize: 10 }}>
+                              Excel
+                            </button>
+                          </td>
                         </tr>
                         {isClassExpanded && (
                           <tr>
-                            <td colSpan={6} style={{ padding: 0 }}>
+                            <td colSpan={7} style={{ padding: 0 }}>
                               <div style={{
                                 background: 'linear-gradient(145deg, #1e293b 0%, #1a2332 100%)',
                                 padding: '12px 16px', borderLeft: `3px solid ${C.accent}`,
@@ -422,13 +452,21 @@ export default function Equipment() {
                                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
                                       <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                        {['Код ЕО', 'Название', 'ABC', 'Заказов', 'План ₽', 'Факт ₽', 'Откл. ₽'].map(h => (
-                                          <th key={h} style={{ color: C.dim, fontSize: 10, padding: '4px 8px', textAlign: 'left', fontWeight: 600 }}>{h}</th>
+                                        {[{key:'eo',label:'Код ЕО'},{key:'name',label:'Название'},{key:'abc',label:'ABC'},{key:'n_orders',label:'Заказов'},{key:'plan',label:'План ₽'},{key:'fact',label:'Факт ₽'},{key:'dev',label:'Откл. ₽'},{key:'',label:''}].map(h => (
+                                          <th key={h.key||h.label} onClick={h.key ? (e) => { e.stopPropagation(); handleClassEoSort(h.key); } : undefined}
+                                            style={{ color: classEoSort.col === h.key ? C.accent : C.dim, fontSize: 10, padding: '4px 8px', textAlign: 'left', fontWeight: 600, cursor: h.key ? 'pointer' : 'default', userSelect: 'none' }}>
+                                            {h.label} {classEoSort.col === h.key ? (classEoSort.dir === 'desc' ? '▼' : '▲') : ''}
+                                          </th>
                                         ))}
                                       </tr>
                                     </thead>
                                     <tbody>
-                                      {classEoList.map((eo, j) => {
+                                      {[...classEoList].sort((a, b) => {
+                                        const dir = classEoSort.dir === 'desc' ? -1 : 1;
+                                        const av = a[classEoSort.col], bv = b[classEoSort.col];
+                                        if (typeof av === 'string') return dir * (av || '').localeCompare(bv || '');
+                                        return dir * ((av || 0) - (bv || 0));
+                                      }).map((eo, j) => {
                                         const isEoExpanded = expandedClassEo === eo.eo;
                                         return (
                                           <React.Fragment key={j}>
@@ -445,10 +483,13 @@ export default function Equipment() {
                                               <td style={{ color: eo.dev > 0 ? C.danger : eo.dev < 0 ? C.success : C.muted, fontSize: 11, textAlign: 'right', padding: '4px 8px', fontWeight: 600 }}>
                                                 {eo.dev > 0 ? '+' : ''}{fmtShort(eo.dev)} ₽
                                               </td>
+                                              <td style={{ padding: '4px 8px' }} onClick={e => e.stopPropagation()}>
+                                                <ExcelEoBtn eo={eo.eo} />
+                                              </td>
                                             </tr>
                                             {isEoExpanded && (
                                               <tr>
-                                                <td colSpan={7} style={{ padding: 0 }}>
+                                                <td colSpan={8} style={{ padding: 0 }}>
                                                   <div style={{
                                                     background: 'linear-gradient(145deg, #1a2332 0%, #162030 100%)',
                                                     padding: '10px 14px', borderLeft: `3px solid ${C.cyan}`,
@@ -466,13 +507,21 @@ export default function Equipment() {
                                                       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                                         <thead>
                                                           <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                                            {['Заказ', 'Дата нач.', 'Дата кон.', 'Вид работ', 'Статус', 'План ₽', 'Факт ₽'].map(h => (
-                                                              <th key={h} style={{ color: C.dim, fontSize: 10, padding: '4px 6px', textAlign: 'left', fontWeight: 600 }}>{h}</th>
+                                                            {[{key:'id',label:'Заказ'},{key:'date_start',label:'Дата нач.'},{key:'date_end',label:'Дата кон.'},{key:'vid',label:'Вид работ'},{key:'stat',label:'Статус'},{key:'plan',label:'План ₽'},{key:'fact',label:'Факт ₽'}].map(h => (
+                                                              <th key={h.key} onClick={(e) => { e.stopPropagation(); handleClassOrdSort(h.key); }}
+                                                                style={{ color: classOrdSort.col === h.key ? C.accent : C.dim, fontSize: 10, padding: '4px 6px', textAlign: 'left', fontWeight: 600, cursor: 'pointer', userSelect: 'none' }}>
+                                                                {h.label} {classOrdSort.col === h.key ? (classOrdSort.dir === 'desc' ? '▼' : '▲') : ''}
+                                                              </th>
                                                             ))}
                                                           </tr>
                                                         </thead>
                                                         <tbody>
-                                                          {classEoOrders.map((ord, k) => {
+                                                          {[...classEoOrders].sort((a, b) => {
+                                                            const dir = classOrdSort.dir === 'desc' ? -1 : 1;
+                                                            const av = a[classOrdSort.col], bv = b[classOrdSort.col];
+                                                            if (typeof av === 'string') return dir * (av || '').localeCompare(bv || '');
+                                                            return dir * ((av || 0) - (bv || 0));
+                                                          }).map((ord, k) => {
                                                             const dClr = ord.date_source === 'FACT' ? '#ffffff' : ord.date_source === 'PLAN' ? C.warning : C.danger;
                                                             const pm = ord.date_source === 'PLAN' ? ' •' : '';
                                                             return (
