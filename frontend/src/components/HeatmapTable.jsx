@@ -53,7 +53,8 @@ const INNER_COLUMNS = [
 
 /** Цвет даты по источнику каскада */
 function dateColor(source) {
-  if (source === 'FACT') return '#ffffff';
+  if (source === 'FACT') return '#34d399';
+  if (source === 'NOTIFY') return '#38bdf8';
   if (source === 'PLAN') return '#fbbf24';
   return '#f43f5e';
 }
@@ -230,7 +231,7 @@ export default function HeatmapTable({
                           <>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                               <span style={{ fontSize: 10, color: C.dim }}>
-                                <span style={{ color: '#ffffff' }}>белый</span> — факт, <span style={{ color: '#fbbf24' }}>жёлтый •</span> — план, <span style={{ color: '#f43f5e' }}>красный</span> — нет
+                                <span style={{ color: '#34d399' }}>зелёный</span> — факт, <span style={{ color: '#38bdf8' }}>синий ○</span> — сообщ., <span style={{ color: '#fbbf24' }}>жёлтый •</span> — план, <span style={{ color: '#f43f5e' }}>красный</span> — нет
                               </span>
                               {onExportExcel && (
                                 <button
@@ -262,7 +263,7 @@ export default function HeatmapTable({
                               <tbody>
                                 {sortedOrders.map((ord, j) => {
                                   const dClr = dateColor(ord.date_source);
-                                  const planMark = ord.date_source === 'PLAN' ? ' \u2022' : '';
+                                  const planMark = ord.date_source === 'PLAN' ? ' \u2022' : ord.date_source === 'NOTIFY' ? ' \u25cb' : '';
                                   const devClr = (ord.dev || 0) > 0 ? C.danger : (ord.dev || 0) < 0 ? C.success : C.muted;
                                   return (
                                   <tr key={j} style={{ borderBottom: `1px solid ${C.border}22` }}>

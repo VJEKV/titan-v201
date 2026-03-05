@@ -12,6 +12,7 @@ from state.session import get_session
 from utils.filters import apply_hierarchy_filters, apply_extra_filters
 from core.aggregates import compute_aggregates
 from core.risk_scoring_v2 import apply_risk_scoring_v2, _is_empty_eo, is_empty_eo_mask
+from utils.formatters import fmt_downtime
 from config.constants import METHODS_RISK
 
 router = APIRouter()
@@ -183,6 +184,8 @@ async def get_orders(
         'Plan_N', 'Fact_N', 'Δ_Сумма',
         'Дата_Начало', 'Дата_Конец', 'Источник_Дат',
         'Начало', 'Конец', 'Факт_Начало', 'Факт_Конец',
+        'Сообщ_Начало', 'Сообщ_Конец', 'Сообщ_Длит',
+        'Простой_Сек',
         'План_Длит', 'Факт_Длит', 'Δ_Дней',
         'Risk_Sum', 'methods',
         'INGRP', 'USER', 'РМ', 'ЗАВОД', 'УСТАНОВКА', 'БЕ'
@@ -211,6 +214,9 @@ async def get_orders(
         if _is_empty_eo(eo_name_val):
             eo_name_val = ''
         item['equipment_name'] = eo_name_val
+        # Форматированный простой
+        dt_val = row.get('Простой_Сек', 0)
+        item['Простой_Fmt'] = fmt_downtime(dt_val) if pd.notna(dt_val) and float(dt_val or 0) > 0 else "0"
         data.append(item)
 
     # Опции для быстрых фильтров (уникальные значения в текущей выборке до quick_filters)

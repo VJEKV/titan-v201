@@ -259,6 +259,7 @@ export default function Equipment() {
     { key: 'dev', label: 'Откл. ₽', sortable: true },
     { key: 'date_first', label: `Первый${topDateHint}`, sortable: true },
     { key: 'date_last', label: `Последний${topDateHint}`, sortable: true },
+    { key: 'downtime_fmt', label: 'Простой', sortable: true },
     { key: '', label: '', sortable: false },
   ];
 
@@ -404,7 +405,7 @@ export default function Equipment() {
               <table>
                 <thead>
                   <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
-                    {[{key:'class_name',label:'Класс'},{key:'n_eo',label:'ЕО'},{key:'n_orders',label:'Заказов'},{key:'plan',label:'План ₽'},{key:'fact',label:'Факт ₽'},{key:'dev',label:'Откл. ₽'},{key:'',label:''}].map(h => (
+                    {[{key:'class_name',label:'Класс'},{key:'n_eo',label:'ЕО'},{key:'n_orders',label:'Заказов'},{key:'plan',label:'План ₽'},{key:'fact',label:'Факт ₽'},{key:'dev',label:'Откл. ₽'},{key:'downtime_fmt',label:'Простой'},{key:'',label:''}].map(h => (
                       <th key={h.key||h.label} onClick={h.key ? () => handleClassSort(h.key) : undefined}
                         style={{ color: classSort.col === h.key ? C.accent : C.muted, fontSize: 11, padding: '8px 10px', whiteSpace: 'nowrap', cursor: h.key ? 'pointer' : 'default', userSelect: 'none' }}>
                         {h.label} {classSort.col === h.key ? (classSort.dir === 'desc' ? '▼' : '▲') : ''}
@@ -433,6 +434,9 @@ export default function Equipment() {
                           <td style={{ color: r.dev > 0 ? C.danger : r.dev < 0 ? C.success : C.muted, fontSize: 12, textAlign: 'right', padding: '6px 10px', fontWeight: 600 }}>
                             {r.dev > 0 ? '+' : ''}{fmtShort(r.dev)} ₽
                           </td>
+                          <td style={{ color: r.downtime_fmt && r.downtime_fmt !== '0' ? C.accent : C.dim, fontSize: 12, padding: '6px 10px', whiteSpace: 'nowrap' }}>
+                            {r.downtime_fmt && r.downtime_fmt !== '0' ? r.downtime_fmt : '—'}
+                          </td>
                           <td style={{ padding: '6px 10px' }} onClick={e => e.stopPropagation()}>
                             <button onClick={() => apiDownload('/api/export/equipment-class-excel', { session_id: sessionId, filters, thresholds, class_name: r.class_name })}
                               style={{ padding: '2px 8px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 4, color: C.accent, cursor: 'pointer', fontSize: 10 }}>
@@ -442,7 +446,7 @@ export default function Equipment() {
                         </tr>
                         {isClassExpanded && (
                           <tr>
-                            <td colSpan={7} style={{ padding: 0 }}>
+                            <td colSpan={8} style={{ padding: 0 }}>
                               <div style={{
                                 background: 'linear-gradient(145deg, #1e293b 0%, #1a2332 100%)',
                                 padding: '12px 16px', borderLeft: `3px solid ${C.accent}`,
@@ -508,7 +512,7 @@ export default function Equipment() {
                                                     ) : (
                                                       <>
                                                       <div style={{ fontSize: 10, color: C.dim, marginBottom: 6 }}>
-                                                        <span style={{ color: '#ffffff' }}>белый</span> — факт, <span style={{ color: C.warning }}>жёлтый •</span> — план, <span style={{ color: C.danger }}>красный</span> — нет
+                                                        <span style={{ color: C.success }}>зелёный</span> — факт, <span style={{ color: C.accent }}>синий ○</span> — сообщ., <span style={{ color: C.warning }}>жёлтый •</span> — план, <span style={{ color: C.danger }}>красный</span> — нет
                                                       </div>
                                                       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                                         <thead>
@@ -535,8 +539,8 @@ export default function Equipment() {
                                                             if (typeof av === 'string') return dir * (av || '').localeCompare(bv || '');
                                                             return dir * ((av || 0) - (bv || 0));
                                                           }).map((ord, k) => {
-                                                            const dClr = ord.date_source === 'FACT' ? '#ffffff' : ord.date_source === 'PLAN' ? C.warning : C.danger;
-                                                            const pm = ord.date_source === 'PLAN' ? ' •' : '';
+                                                            const dClr = ord.date_source === 'FACT' ? C.success : ord.date_source === 'NOTIFY' ? C.accent : ord.date_source === 'PLAN' ? C.warning : C.danger;
+                                                            const pm = ord.date_source === 'PLAN' ? ' \u2022' : ord.date_source === 'NOTIFY' ? ' \u25cb' : '';
                                                             const ordDev = (ord.dev != null) ? ord.dev : (ord.fact || 0) - (ord.plan || 0);
                                                             return (
                                                             <tr key={k} style={{ borderBottom: `1px solid ${C.border}22` }}>
@@ -655,6 +659,7 @@ export default function Equipment() {
                         </td>
                         <td style={{ color: C.muted, fontSize: 11, padding: '6px 10px', whiteSpace: 'nowrap' }}>{r.date_first || '—'}</td>
                         <td style={{ color: C.muted, fontSize: 11, padding: '6px 10px', whiteSpace: 'nowrap' }}>{r.date_last || '—'}</td>
+                        <td style={{ color: r.downtime_fmt && r.downtime_fmt !== '0' ? C.accent : C.dim, fontSize: 11, padding: '6px 10px', whiteSpace: 'nowrap' }}>{r.downtime_fmt && r.downtime_fmt !== '0' ? r.downtime_fmt : '—'}</td>
                         <td style={{ padding: '6px 10px' }}><ExcelEoBtn eo={r.eo} /></td>
                       </tr>
                       {isExpanded && (
@@ -672,7 +677,7 @@ export default function Equipment() {
                               ) : (
                                 <>
                                 <div style={{ fontSize: 10, color: C.dim, marginBottom: 6 }}>
-                                  <span style={{ color: '#ffffff' }}>белый</span> — факт, <span style={{ color: C.warning }}>жёлтый •</span> — план, <span style={{ color: C.danger }}>красный</span> — нет
+                                  <span style={{ color: C.success }}>зелёный</span> — факт, <span style={{ color: C.accent }}>синий ○</span> — сообщ., <span style={{ color: C.warning }}>жёлтый •</span> — план, <span style={{ color: C.danger }}>красный</span> — нет
                                 </div>
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                   <thead>
@@ -684,8 +689,8 @@ export default function Equipment() {
                                   </thead>
                                   <tbody>
                                     {expandedOrders.map((ord, j) => {
-                                      const dClr = ord.date_source === 'FACT' ? '#ffffff' : ord.date_source === 'PLAN' ? C.warning : C.danger;
-                                      const pm = ord.date_source === 'PLAN' ? ' \u2022' : '';
+                                      const dClr = ord.date_source === 'FACT' ? C.success : ord.date_source === 'NOTIFY' ? C.accent : ord.date_source === 'PLAN' ? C.warning : C.danger;
+                                      const pm = ord.date_source === 'PLAN' ? ' \u2022' : ord.date_source === 'NOTIFY' ? ' \u25cb' : '';
                                       const oDev = (ord.dev != null) ? ord.dev : (ord.fact || 0) - (ord.plan || 0);
                                       return (
                                       <tr key={j} style={{ borderBottom: `1px solid ${C.border}22` }}>
@@ -898,7 +903,7 @@ export default function Equipment() {
                               ) : (
                                 <>
                                 <div style={{ fontSize: 10, color: C.dim, marginBottom: 6 }}>
-                                  <span style={{ color: '#ffffff' }}>белый</span> — факт, <span style={{ color: C.warning }}>жёлтый •</span> — план, <span style={{ color: C.danger }}>красный</span> — нет
+                                  <span style={{ color: C.success }}>зелёный</span> — факт, <span style={{ color: C.accent }}>синий ○</span> — сообщ., <span style={{ color: C.warning }}>жёлтый •</span> — план, <span style={{ color: C.danger }}>красный</span> — нет
                                 </div>
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                   <thead>
@@ -910,8 +915,8 @@ export default function Equipment() {
                                   </thead>
                                   <tbody>
                                     {freqExpandedOrders.map((ord, j) => {
-                                      const dClr = ord.date_source === 'FACT' ? '#ffffff' : ord.date_source === 'PLAN' ? C.warning : C.danger;
-                                      const pm = ord.date_source === 'PLAN' ? ' \u2022' : '';
+                                      const dClr = ord.date_source === 'FACT' ? C.success : ord.date_source === 'NOTIFY' ? C.accent : ord.date_source === 'PLAN' ? C.warning : C.danger;
+                                      const pm = ord.date_source === 'PLAN' ? ' \u2022' : ord.date_source === 'NOTIFY' ? ' \u25cb' : '';
                                       const fDev = (ord.dev != null) ? ord.dev : (ord.fact || 0) - (ord.plan || 0);
                                       return (
                                       <tr key={j} style={{ borderBottom: `1px solid ${C.border}22` }}>

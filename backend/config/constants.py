@@ -187,6 +187,9 @@ FIELD_MAPPING = {
     'INGPR_TXT': 'Группа плановиков',
     'TPLNR_TXT': 'Техническое место',
     'CLINT_TXT': 'Класс',
+    'AUSVN': 'Начало работ по сообщению',
+    'AUSBS': 'Окончание работ по сообщению',
+    'AUSZT': 'Простой оборудования (сек)',
 }
 
 RENAMED_TO_ORIGINAL = {
@@ -217,6 +220,9 @@ RENAMED_TO_ORIGINAL = {
     'ДЕФЕКТ_ВЕД': 'ZZ_DEFNUM',
     'USER': 'ERNAM',
     'MAUFNR': 'MAUFNR',
+    'Сообщ_Начало': 'AUSVN',
+    'Сообщ_Конец': 'AUSBS',
+    'Простой_Сек': 'AUSZT',
 }
 
 EMPTY_VALUES = {

@@ -60,13 +60,33 @@ def fmt_short(val):
         return f"{sign}{abs_val:.1f}"
 
 
+def fmt_downtime(seconds):
+    """Форматирование простоя: секунды → 'X дн. Y час.' """
+    try:
+        if pd.isna(seconds) or seconds is None:
+            return "0"
+        val = float(seconds)
+        if val <= 0:
+            return "0"
+        total_hours = val / 3600
+        days = int(total_hours // 24)
+        hours = int(total_hours % 24)
+        if days > 0:
+            return f"{days} дн. {hours} час."
+        return f"{hours} час."
+    except Exception:
+        return "0"
+
+
 def fmt_date_styled(date_val, source):
     """Возвращает dict {text, color} для даты с меткой источника."""
     if pd.isna(date_val):
         return {"text": "— нет даты —", "color": "#f43f5e"}
     text = date_val.strftime('%d.%m.%Y')
     if source == 'FACT':
-        return {"text": text, "color": "#ffffff"}
+        return {"text": text, "color": "#34d399"}
+    elif source == 'NOTIFY':
+        return {"text": text + " \u25cb", "color": "#38bdf8"}
     elif source == 'PLAN':
         return {"text": text + " \u2022", "color": "#fbbf24"}
     return {"text": "— нет даты —", "color": "#f43f5e"}

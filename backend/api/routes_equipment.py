@@ -16,6 +16,7 @@ from state.session import get_session
 from utils.filters import apply_hierarchy_filters, apply_extra_filters
 from core.aggregates import compute_aggregates
 from core.risk_scoring_v2 import apply_risk_scoring_v2, _is_empty_eo, is_empty_eo_mask, EMPTY_EO_VALUES
+from utils.formatters import fmt_downtime
 from config.constants import METHODS_RISK, ВНЕПЛАНОВЫЕ_ВИДЫ
 
 router = APIRouter()
@@ -109,26 +110,38 @@ async def get_equipment(
     else:
         df_with_eo['Класс_ЕО'] = 'Без класса'
 
+    # Подготовка простоя — числовая колонка
+    has_downtime = 'Простой_Сек' in df_with_eo.columns
+    if has_downtime:
+        df_with_eo['_dt_sec'] = pd.to_numeric(df_with_eo['Простой_Сек'], errors='coerce').fillna(0)
+
     # === 1. Метрики по классам ===
     classes_data = []
     if len(df_with_eo) > 0:
-        cls_grp = df_with_eo.groupby('Класс_ЕО').agg(
-            n_eo=(eo_col, 'nunique'),
-            n_orders=('ID', 'count'),
-            plan=('Plan_N', 'sum'),
-            fact=('Fact_N', 'sum'),
-        ).reset_index()
+        agg_cls = {
+            'n_eo': (eo_col, 'nunique'),
+            'n_orders': ('ID', 'count'),
+            'plan': ('Plan_N', 'sum'),
+            'fact': ('Fact_N', 'sum'),
+        }
+        if has_downtime:
+            agg_cls['downtime_sec'] = ('_dt_sec', 'sum')
+        cls_grp = df_with_eo.groupby('Класс_ЕО').agg(**agg_cls).reset_index()
         cls_grp['dev'] = cls_grp['fact'] - cls_grp['plan']
         cls_grp = cls_grp.sort_values('fact', ascending=False)
         for _, r in cls_grp.iterrows():
-            classes_data.append({
+            item = {
                 "class_name": str(r['Класс_ЕО']),
                 "n_eo": int(r['n_eo']),
                 "n_orders": int(r['n_orders']),
                 "plan": _sf(r['plan']),
                 "fact": _sf(r['fact']),
                 "dev": _sf(r['dev']),
-            })
+            }
+            if has_downtime:
+                item["downtime_sec"] = _sf(r['downtime_sec'])
+                item["downtime_fmt"] = fmt_downtime(r['downtime_sec'])
+            classes_data.append(item)
 
     # === 2. Метрики на единицу оборудования ===
     per_eo_data = []
@@ -167,6 +180,9 @@ async def get_equipment(
         if top_date_col:
             agg_dict['date_first'] = (top_date_col, 'min')
             agg_dict['date_last'] = (top_date_col, 'max')
+        # Простой
+        if has_downtime:
+            agg_dict['downtime_sec'] = ('_dt_sec', 'sum')
 
         eo_stats = df_with_eo.groupby(eo_col).agg(**agg_dict).reset_index()
         eo_stats['dev'] = eo_stats['fact'] - eo_stats['plan']
@@ -193,6 +209,9 @@ async def get_equipment(
                 item['date_last'] = r['date_last'].isoformat()[:10] if hasattr(r['date_last'], 'isoformat') else str(r['date_last'])[:10]
             else:
                 item['date_last'] = ''
+            if has_downtime and 'downtime_sec' in r.index:
+                item['downtime_sec'] = _sf(r['downtime_sec'])
+                item['downtime_fmt'] = fmt_downtime(r['downtime_sec'])
             top50.append(item)
 
     # === 4. Лидеры по внеплановым среди A и B ===
@@ -471,6 +490,14 @@ async def get_equipment_orders(
         date_start_str = ds_val.strftime('%d.%m.%Y') if pd.notna(ds_val) and hasattr(ds_val, 'strftime') else ''
         date_end_str = de_val.strftime('%d.%m.%Y') if pd.notna(de_val) and hasattr(de_val, 'strftime') else ''
         rm = str(row.get('РМ', '')) if pd.notna(row.get('РМ')) else ''
+        # Простой
+        dt_sek = row.get('Простой_Сек', 0)
+        dt_val = float(dt_sek) if pd.notna(dt_sek) else 0
+        # Даты по сообщению
+        ns_val = row.get('Сообщ_Начало')
+        ne_val = row.get('Сообщ_Конец')
+        ns_str = ns_val.strftime('%d.%m.%Y') if pd.notna(ns_val) and hasattr(ns_val, 'strftime') else ''
+        ne_str = ne_val.strftime('%d.%m.%Y') if pd.notna(ne_val) and hasattr(ne_val, 'strftime') else ''
         orders.append({
             "id": order_id,
             "text": text,
@@ -483,6 +510,10 @@ async def get_equipment_orders(
             "date_start": date_start_str,
             "date_end": date_end_str,
             "date_source": date_source,
+            "notify_start": ns_str,
+            "notify_end": ne_str,
+            "downtime_sec": dt_val,
+            "downtime_fmt": fmt_downtime(dt_val),
             "rm": rm,
         })
     # Сортируем по дате (свежие сверху)

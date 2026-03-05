@@ -79,10 +79,12 @@ export default function Timeline() {
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;
 
-  const { kpi, monthly_count: rawMonthlyCount, duration, cost } = data;
+  const { kpi, monthly_count: rawMonthlyCount, duration, cost, downtime } = data;
   const monthly_count = dedupeByLabel(rawMonthlyCount || []);
   const costData = mergeSeriesData(cost);
   const durationData = mergeSeriesData(duration);
+  const downtimeData = (downtime || []).map(d => ({ label: d.label, hours: d.total_hours }));
+  const hasDowntime = downtimeData.some(d => d.hours > 0);
   const fsz = csCost.fontSizes;
   const fontFamily = csCost.font;
 
@@ -238,6 +240,12 @@ export default function Timeline() {
         <KpiCard title="ЗАКАЗОВ С ДАТАМИ" value={kpi.total_with_dates} />
         <KpiCard title="СРЕДН. ДЛИТЕЛЬНОСТЬ" value={`${kpi.avg_duration} дн.`} />
         <KpiCard title="СРЕДН. СТОИМОСТЬ" value={`${fmtShort(kpi.avg_cost)} ₽`} />
+        {kpi.total_downtime_fmt && kpi.total_downtime_fmt !== '0' && (
+          <KpiCard title="ПРОСТОЙ ВСЕГО" value={kpi.total_downtime_fmt} borderColor={C.accent} />
+        )}
+        {kpi.avg_downtime_fmt && kpi.avg_downtime_fmt !== '0' && (
+          <KpiCard title="ПРОСТОЙ СРЕДН." value={kpi.avg_downtime_fmt} borderColor={C.accent} />
+        )}
       </KpiRow>
 
       {/* 1. Средняя стоимость */}
@@ -258,6 +266,23 @@ export default function Timeline() {
       {durationData.length > 0 && (
         <Card title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>3. Средняя длительность по месяцам (дни) <ChartSettings chartId="tl-dur" chartTypes={[{value:'line',label:'Линия'},{value:'bar',label:'Столбцы'},{value:'area',label:'Область'}]} currentChartType={durType} onChartTypeChange={setDurType} /></span>}>
           {renderDurationChart()}
+        </Card>
+      )}
+
+      {/* 4. Простой оборудования */}
+      {hasDowntime && (
+        <Card title="4. Простой оборудования по месяцам (часы)">
+          <ResponsiveContainer width="100%" height={350}>
+            <BarChart data={downtimeData} barCategoryGap="20%">
+              <XAxis dataKey="label" tick={{ fill: C.muted, fontSize: fsz.tick, fontFamily }} angle={-45} textAnchor="end" height={60} interval={0} />
+              <YAxis tick={{ fill: C.muted, fontSize: fsz.tick, fontFamily }} />
+              <Tooltip contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily }}
+                formatter={v => [`${v} ч.`]} />
+              <Bar dataKey="hours" fill={C.accent} radius={[4,4,0,0]} name="Простой">
+                <LabelList dataKey="hours" content={renderBarLabel} />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </Card>
       )}
     </div>

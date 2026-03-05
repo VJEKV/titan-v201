@@ -13,6 +13,7 @@ from state.session import get_session
 from utils.filters import apply_hierarchy_filters, apply_extra_filters
 from core.aggregates import compute_aggregates
 from core.risk_scoring_v2 import apply_risk_scoring_v2
+from utils.formatters import fmt_downtime
 from config.constants import METHODS_RISK
 
 router = APIRouter()
@@ -61,7 +62,7 @@ async def get_timeline(
             break
 
     if not date_col:
-        return {"monthly_count": [], "duration": [], "cost": [], "kpi": {}}
+        return {"monthly_count": [], "duration": [], "cost": [], "downtime": [], "kpi": {}}
 
     df_m = df_f.copy()
     df_m['_month'] = df_m[date_col].dt.month
@@ -106,17 +107,47 @@ async def get_timeline(
                 })
             cost.append({"name": label, "data": items})
 
+    # 4. Простой по месяцам
+    downtime = []
+    if 'Простой_Сек' in df_valid.columns:
+        dt_col = pd.to_numeric(df_valid['Простой_Сек'], errors='coerce').fillna(0)
+        df_dt = df_valid.copy()
+        df_dt['_dt'] = dt_col
+        dt_grp = df_dt.groupby(['_year', '_month'])['_dt'].agg(['sum', 'mean']).reset_index()
+        dt_grp = dt_grp.sort_values(['_year', '_month'])
+        for _, r in dt_grp.iterrows():
+            label = f"{MONTH_SHORT.get(int(r['_month']), '?')} {int(r['_year'])}"
+            downtime.append({
+                "label": label,
+                "total_sec": _sf(r['sum']),
+                "total_fmt": fmt_downtime(r['sum']),
+                "avg_sec": _sf(r['mean']),
+                "avg_fmt": fmt_downtime(r['mean']),
+                "total_hours": round(_sf(r['sum']) / 3600, 1),
+            })
+
     # KPI
     avg_dur = _sf(df_valid['Факт_Длит'].mean()) if 'Факт_Длит' in df_valid.columns else 0
     avg_cost = _sf(df_valid['Fact_N'].mean()) if 'Fact_N' in df_valid.columns else 0
+    # KPI простоя
+    total_downtime_sec = 0
+    avg_downtime_sec = 0
+    if 'Простой_Сек' in df_valid.columns:
+        dt_all = pd.to_numeric(df_valid['Простой_Сек'], errors='coerce').fillna(0)
+        total_downtime_sec = _sf(dt_all.sum())
+        dt_pos = dt_all[dt_all > 0]
+        avg_downtime_sec = _sf(dt_pos.mean()) if len(dt_pos) > 0 else 0
 
     return {
         "monthly_count": monthly_count,
         "duration": duration,
         "cost": cost,
+        "downtime": downtime,
         "kpi": {
             "total_with_dates": len(df_valid),
             "avg_duration": round(avg_dur, 0),
             "avg_cost": round(avg_cost, 0),
+            "total_downtime_fmt": fmt_downtime(total_downtime_sec),
+            "avg_downtime_fmt": fmt_downtime(avg_downtime_sec),
         }
     }

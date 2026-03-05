@@ -222,9 +222,11 @@ def apply_risk_scoring_v2(df, agg, thresholds):
         else:
             score = pd.Series(0.0, index=df.index)
 
-        # C1-M9: снижаем балл ×0.7 если даты только плановые
+        # C1-M9: снижаем балл по источнику дат (FACT×1.0, NOTIFY×0.85, PLAN×0.7)
         if method_name == "C1-M9: Незавершённые работы" and 'Источник_Дат' in df.columns:
+            is_notify = df['Источник_Дат'] == 'NOTIFY'
             is_plan = df['Источник_Дат'] == 'PLAN'
+            score = score.where(~is_notify, score * 0.85)
             score = score.where(~is_plan, score * 0.7)
 
         col_score = f"Score_{method_name}"

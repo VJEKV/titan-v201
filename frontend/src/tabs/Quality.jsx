@@ -99,14 +99,14 @@ export default function Quality() {
         const pct = v => (v / t * 100).toFixed(1);
         const fmtN = v => Number(v).toLocaleString('ru-RU');
         const cats = [
-          { label: 'Факт + План', color: C.success },
-          { label: 'Только факт', color: '#ffffff' },
-          { label: 'Только план', color: C.warning },
+          { label: 'Факт', color: C.success },
+          { label: 'По сообщ.', color: C.accent },
+          { label: 'План', color: C.warning },
           { label: 'Нет дат', color: C.danger },
         ];
         const dRows = [
-          { label: 'Начало', vals: [ds.start_both, ds.start_fact_only, ds.start_plan_only, ds.start_none] },
-          { label: 'Конец', vals: [ds.end_both, ds.end_fact_only, ds.end_plan_only, ds.end_none] },
+          { label: 'Начало', vals: [ds.start_fact, ds.start_notify || 0, ds.start_plan, ds.start_none] },
+          { label: 'Конец', vals: [ds.end_fact, ds.end_notify || 0, ds.end_plan, ds.end_none] },
         ];
         const thS = { padding: '0 10px 6px', fontSize: 10, fontWeight: 600, textAlign: 'center', whiteSpace: 'nowrap' };
         const tdS = { padding: '4px 10px', textAlign: 'center', fontSize: 12 };

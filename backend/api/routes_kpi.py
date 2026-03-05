@@ -12,7 +12,7 @@ from state.session import get_session
 from utils.filters import apply_hierarchy_filters, apply_extra_filters
 from core.aggregates import compute_aggregates
 from core.risk_scoring_v2 import apply_risk_scoring_v2
-from utils.formatters import fmt_short, fmt
+from utils.formatters import fmt_short, fmt, fmt_downtime
 from config.constants import METHODS_RISK, FIELD_MAPPING, RENAMED_TO_ORIGINAL, EMPTY_VALUES
 
 router = APIRouter()
@@ -147,27 +147,43 @@ async def get_kpi(
         "n_users": _nunique('USER'),
     }
 
-    # Покрытие датами — 4 взаимоисключающие категории для каждой пары
-    # (факт+план, только факт, только план, нет дат)
+    # Покрытие датами — категории для каждой пары (факт, сообщ, план, нет)
     date_stats = None
     if total > 0:
         ds = {}
         # Булевы маски наличия дат
         hf_start = df_scored['Факт_Начало'].notna() if 'Факт_Начало' in df_scored.columns else pd.Series(False, index=df_scored.index)
+        hn_start = df_scored['Сообщ_Начало'].notna() if 'Сообщ_Начало' in df_scored.columns else pd.Series(False, index=df_scored.index)
         hp_start = df_scored['Начало'].notna() if 'Начало' in df_scored.columns else pd.Series(False, index=df_scored.index)
         hf_end = df_scored['Факт_Конец'].notna() if 'Факт_Конец' in df_scored.columns else pd.Series(False, index=df_scored.index)
+        hn_end = df_scored['Сообщ_Конец'].notna() if 'Сообщ_Конец' in df_scored.columns else pd.Series(False, index=df_scored.index)
         hp_end = df_scored['Конец'].notna() if 'Конец' in df_scored.columns else pd.Series(False, index=df_scored.index)
-        # Дата начала: 4 категории
-        ds['start_both'] = int((hf_start & hp_start).sum())
-        ds['start_fact_only'] = int((hf_start & ~hp_start).sum())
-        ds['start_plan_only'] = int((~hf_start & hp_start).sum())
-        ds['start_none'] = int((~hf_start & ~hp_start).sum())
-        # Дата окончания: 4 категории
-        ds['end_both'] = int((hf_end & hp_end).sum())
-        ds['end_fact_only'] = int((hf_end & ~hp_end).sum())
-        ds['end_plan_only'] = int((~hf_end & hp_end).sum())
-        ds['end_none'] = int((~hf_end & ~hp_end).sum())
+        # Дата начала: категории
+        ds['start_fact'] = int(hf_start.sum())
+        ds['start_notify'] = int((~hf_start & hn_start).sum())
+        ds['start_plan'] = int((~hf_start & ~hn_start & hp_start).sum())
+        ds['start_none'] = int((~hf_start & ~hn_start & ~hp_start).sum())
+        # Дата окончания: категории
+        ds['end_fact'] = int(hf_end.sum())
+        ds['end_notify'] = int((~hf_end & hn_end).sum())
+        ds['end_plan'] = int((~hf_end & ~hn_end & hp_end).sum())
+        ds['end_none'] = int((~hf_end & ~hn_end & ~hp_end).sum())
         date_stats = ds
+
+    # KPI простоя оборудования
+    downtime_stats = None
+    if total > 0 and 'Простой_Сек' in df_scored.columns:
+        dt_series = pd.to_numeric(df_scored['Простой_Сек'], errors='coerce').fillna(0)
+        dt_positive = dt_series[dt_series > 0]
+        downtime_stats = {
+            "total_sec": _safe_float(dt_series.sum()),
+            "total_fmt": fmt_downtime(dt_series.sum()),
+            "avg_sec": _safe_float(dt_positive.mean()) if len(dt_positive) > 0 else 0,
+            "avg_fmt": fmt_downtime(dt_positive.mean()) if len(dt_positive) > 0 else "0",
+            "orders_with_downtime": int((dt_series > 0).sum()),
+            "max_sec": _safe_float(dt_series.max()),
+            "max_fmt": fmt_downtime(dt_series.max()),
+        }
 
     return {
         "total": total,
@@ -183,6 +199,7 @@ async def get_kpi(
         "max_risk": _card(max_risk_row, 'Risk_Sum'),
         "stats": stats,
         "date_stats": date_stats,
+        "downtime_stats": downtime_stats,
         # Форматированные значения
         "plan_fmt": fmt_short(plan),
         "fact_fmt": fmt_short(fact),

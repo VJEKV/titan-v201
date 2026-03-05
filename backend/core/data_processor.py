@@ -36,7 +36,8 @@ def aggregate_status_history(df):
         'PMCOALLP', 'PMCOALLF', 'PMCO001P', 'PMCO001F',
         'PMCO008P', 'PMCO008F',
         'INGPR', 'INGPR_TXT', 'TPLNR', 'TPLNR_TXT',
-        'CLINT', 'CLINT_TXT', 'AUFNR_OSN', 'DGP'
+        'CLINT', 'CLINT_TXT', 'AUFNR_OSN', 'DGP',
+        'AUSZT', 'AUSVN', 'AUSBS'
     ]
     static_cols = [c for c in static_cols if c in df.columns]
 
@@ -122,7 +123,8 @@ def process_data(df_raw):
             'AUFNR_OSN': 'ОСНОВА_ЗАКАЗ', 'DGP': 'DGP',
             'N_STATUS_CHANGES': 'N_STATUS_CHANGES',
             'N_STATUS_RETURNS': 'N_STATUS_RETURNS',
-            'ALL_STATUSES': 'ALL_STATUSES'
+            'ALL_STATUSES': 'ALL_STATUSES',
+            'AUSZT': 'AUSZT_RAW', 'AUSVN': 'NS', 'AUSBS': 'NE'
         }
     else:
         map_cols = {
@@ -178,26 +180,51 @@ def process_data(df_raw):
         else:
             df[col] = pd.NaT
 
+    # --- Даты по сообщению (AUSVN/AUSBS) ---
+    for col, src in [('Сообщ_Начало', 'NS'), ('Сообщ_Конец', 'NE')]:
+        if src in df.columns:
+            df[col] = safe_parse_datetime(df[src])
+        else:
+            df[col] = pd.NaT
+
+    # --- Простой оборудования (AUSZT) в секундах ---
+    df['Простой_Сек'] = fast_parse_series(df['AUSZT_RAW']) if 'AUSZT_RAW' in df.columns else 0.0
+
     # --- Каскадные даты ---
     DATE_CUTOFF = pd.Timestamp('2015-01-01')
 
     # Отсечка мусора: всё < 2015 → NaT
-    for col in ['Начало', 'Конец', 'Факт_Начало', 'Факт_Конец']:
+    for col in ['Начало', 'Конец', 'Факт_Начало', 'Факт_Конец', 'Сообщ_Начало', 'Сообщ_Конец']:
         if col in df.columns:
             mask_junk = df[col].notna() & (df[col] < DATE_CUTOFF)
             df.loc[mask_junk, col] = pd.NaT
 
-    # Каскад: факт → план
-    df['Дата_Начало'] = df['Факт_Начало'].where(df['Факт_Начало'].notna(), df['Начало'])
-    df['Дата_Конец'] = df['Факт_Конец'].where(df['Факт_Конец'].notna(), df['Конец'])
+    # Каскад 3 уровня: ФАКТ → СООБЩЕНИЕ → ПЛАН
+    # Начало: факт → сообщение → план
+    cascade_start = df['Факт_Начало'].where(df['Факт_Начало'].notna(),
+                    df['Сообщ_Начало'].where(df['Сообщ_Начало'].notna(), df['Начало']))
+    df['Дата_Начало'] = cascade_start
+    # Конец: факт → сообщение → план
+    cascade_end = df['Факт_Конец'].where(df['Факт_Конец'].notna(),
+                  df['Сообщ_Конец'].where(df['Сообщ_Конец'].notna(), df['Конец']))
+    df['Дата_Конец'] = cascade_end
     df['Дата_Месяц'] = df['Дата_Начало']
 
-    # Источник дат
+    # Источник дат (4 уровня)
     df['Источник_Дат'] = 'NONE'
     mask_fact = df['Факт_Начало'].notna()
-    mask_plan = (~mask_fact) & df['Начало'].notna()
+    mask_notify = (~mask_fact) & df['Сообщ_Начало'].notna()
+    mask_plan = (~mask_fact) & (~mask_notify) & df['Начало'].notna()
     df.loc[mask_fact, 'Источник_Дат'] = 'FACT'
+    df.loc[mask_notify, 'Источник_Дат'] = 'NOTIFY'
     df.loc[mask_plan, 'Источник_Дат'] = 'PLAN'
+
+    # Длительность по сообщению (дни)
+    mask_notify_both = df['Сообщ_Конец'].notna() & df['Сообщ_Начало'].notna()
+    df['Сообщ_Длит'] = np.nan
+    df.loc[mask_notify_both, 'Сообщ_Длит'] = (
+        df.loc[mask_notify_both, 'Сообщ_Конец'] - df.loc[mask_notify_both, 'Сообщ_Начало']
+    ).dt.days.astype(float)
 
     try:
         if df['Конец'].notna().any() and df['Начало'].notna().any():

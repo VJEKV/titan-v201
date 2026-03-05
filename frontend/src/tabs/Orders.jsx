@@ -165,6 +165,7 @@ export default function Orders({ activeMethod, setActiveMethod }) {
     { key: 'Δ_Сумма', label: 'Δ ₽', width: 80, align: 'right', fmt: v => v > 0 ? `+${fmtShort(v)}` : fmtShort(v) },
     { key: 'Дата_Начало', label: 'Дата нач.', width: 90 },
     { key: 'Дата_Конец', label: 'Дата кон.', width: 90 },
+    { key: 'Простой_Fmt', label: 'Простой', width: 100 },
     { key: 'Risk_Sum', label: 'Риск', width: 60, align: 'center' },
     { key: 'methods', label: 'Методы', width: 140 },
   ];
@@ -398,9 +399,15 @@ export default function Orders({ activeMethod, setActiveMethod }) {
                     }
                     if (col.key === 'Дата_Начало' || col.key === 'Дата_Конец') {
                       const src = row['Источник_Дат'];
-                      const clr = src === 'FACT' ? '#ffffff' : src === 'PLAN' ? C.warning : C.danger;
-                      const txt = val ? val + (src === 'PLAN' ? ' \u2022' : '') : '\u2014';
+                      const clr = src === 'FACT' ? C.success : src === 'NOTIFY' ? C.accent : src === 'PLAN' ? C.warning : C.danger;
+                      const mark = src === 'PLAN' ? ' \u2022' : src === 'NOTIFY' ? ' \u25cb' : '';
+                      const txt = val ? val + mark : '\u2014';
                       return <td key={col.key} style={{ color: clr, fontSize: 12 }}>{txt}</td>;
+                    }
+                    if (col.key === 'Простой_Fmt') {
+                      const dtVal = val && val !== '0' ? val : '\u2014';
+                      const dtClr = val && val !== '0' ? C.accent : C.dim;
+                      return <td key={col.key} style={{ color: dtClr, fontSize: 12 }}>{dtVal}</td>;
                     }
 
                     return (
