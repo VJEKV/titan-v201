@@ -175,12 +175,21 @@ async def get_kpi(
     if total > 0 and 'Простой_Сек' in df_scored.columns:
         dt_series = pd.to_numeric(df_scored['Простой_Сек'], errors='coerce').fillna(0)
         dt_positive = dt_series[dt_series > 0]
+        # Количество уникальных ЕО с простоем
+        eo_col = 'EQUNR_Код' if 'EQUNR_Код' in df_scored.columns else 'ЕО'
+        eo_with_dt = 0
+        if eo_col in df_scored.columns:
+            df_dt_pos = df_scored[dt_series > 0]
+            eo_vals = df_dt_pos[eo_col].dropna().astype(str)
+            eo_vals = eo_vals[~eo_vals.isin(['Н/Д', 'nan', 'None', '', '0', 'Не присвоено'])]
+            eo_with_dt = int(eo_vals.nunique())
         downtime_stats = {
             "total_sec": _safe_float(dt_series.sum()),
             "total_fmt": fmt_downtime(dt_series.sum()),
             "avg_sec": _safe_float(dt_positive.mean()) if len(dt_positive) > 0 else 0,
             "avg_fmt": fmt_downtime(dt_positive.mean()) if len(dt_positive) > 0 else "0",
             "orders_with_downtime": int((dt_series > 0).sum()),
+            "eo_with_downtime": eo_with_dt,
             "max_sec": _safe_float(dt_series.max()),
             "max_fmt": fmt_downtime(dt_series.max()),
         }
