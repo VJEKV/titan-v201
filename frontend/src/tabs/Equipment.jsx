@@ -168,7 +168,7 @@ export default function Equipment() {
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;
 
-  const { kpi, abc_data, classes_data, per_eo_data, top50, unplanned_leaders, heatmap, heatmap_eo_stats, frequency, top_date_label, freq_date_label } = data;
+  const { kpi, downtime_kpi, abc_data, classes_data, per_eo_data, top50, unplanned_leaders, heatmap, heatmap_eo_stats, frequency, top_date_label, freq_date_label } = data;
   const fs = csAbc.fontSizes;
   const fontFamily = csAbc.font;
 
@@ -381,6 +381,15 @@ export default function Equipment() {
         <KpiCard title="БЕЗ ЕО (ЗАКАЗОВ)" value={fmtNum(kpi.no_eo_orders)} color={C.dim} />
       </KpiRow>
 
+      {/* KPI простоя */}
+      {downtime_kpi && downtime_kpi.total_fmt !== '0' && (
+        <KpiRow>
+          <KpiCard title="ПРОСТОЙ ЕО (Σ)" value={downtime_kpi.total_fmt} sub={`${downtime_kpi.n_eo} ЕО · ${downtime_kpi.n_downtimes} простоев`} color={C.accent} />
+          <KpiCard title="ПРОСТОЙ (СР.)" value={downtime_kpi.avg_fmt} color={C.accent} />
+          <KpiCard title="ПРОСТОЙ (МАКС)" value={downtime_kpi.max_fmt} color={C.accent} />
+        </KpiRow>
+      )}
+
 {/* ABC-распределение */}
       {abc_data && abc_data.length > 0 && (
         <Card title="1. ABC-критичность оборудования">
@@ -517,7 +526,7 @@ export default function Equipment() {
                                                       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                                         <thead>
                                                           <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                                            {[{key:'id',label:'Заказ'},{key:'date_start',label:'Дата нач.'},{key:'date_end',label:'Дата кон.'},{key:'vid',label:'Вид работ'},{key:'rm',label:'РМ'},{key:'stat',label:'Статус'},{key:'plan',label:'План ₽'},{key:'fact',label:'Факт ₽'},{key:'dev',label:'Откл. ₽'}].map(h => (
+                                                            {[{key:'id',label:'Заказ'},{key:'date_start',label:'Дата нач.'},{key:'date_end',label:'Дата кон.'},{key:'downtime_fmt',label:'Простой'},{key:'vid',label:'Вид работ'},{key:'rm',label:'РМ'},{key:'stat',label:'Статус'},{key:'plan',label:'План ₽'},{key:'fact',label:'Факт ₽'},{key:'dev',label:'Откл. ₽'}].map(h => (
                                                               <th key={h.key} onClick={(e) => { e.stopPropagation(); handleClassOrdSort(h.key); }}
                                                                 style={{ color: classOrdSort.col === h.key ? C.accent : C.dim, fontSize: 10, padding: '4px 6px', textAlign: 'left', fontWeight: 600, cursor: 'pointer', userSelect: 'none' }}>
                                                                 {h.label} {classOrdSort.col === h.key ? (classOrdSort.dir === 'desc' ? '▼' : '▲') : ''}
@@ -549,6 +558,7 @@ export default function Equipment() {
                                                               </td>
                                                               <td style={{ color: dClr, fontSize: 10, padding: '3px 6px', whiteSpace: 'nowrap' }}>{ord.date_start ? ord.date_start + pm : '—'}</td>
                                                               <td style={{ color: dClr, fontSize: 10, padding: '3px 6px', whiteSpace: 'nowrap' }}>{ord.date_end ? ord.date_end + pm : '—'}</td>
+                                                              <td style={{ color: ord.downtime_fmt && ord.downtime_fmt !== '0' ? C.accent : C.dim, fontSize: 10, padding: '3px 6px', whiteSpace: 'nowrap' }}>{ord.downtime_fmt && ord.downtime_fmt !== '0' ? ord.downtime_fmt : '—'}</td>
                                                               <td style={{ color: C.text, fontSize: 10, padding: '3px 6px' }}>{ord.vid}</td>
                                                               <td style={{ color: C.muted, fontSize: 10, padding: '3px 6px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ord.rm}>{ord.rm || '—'}</td>
                                                               <td style={{ color: C.muted, fontSize: 10, padding: '3px 6px' }}>{ord.stat}</td>
@@ -682,7 +692,7 @@ export default function Equipment() {
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                   <thead>
                                     <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                      {['Заказ', 'Дата нач.', 'Дата кон.', 'Вид работ', 'РМ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽', 'Откл. ₽'].map(h => (
+                                      {['Заказ', 'Дата нач.', 'Дата кон.', 'Вид работ', 'РМ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽', 'Откл. ₽', 'Простой'].map(h => (
                                         <th key={h} style={{ color: C.dim, fontSize: 10, padding: '4px 8px', textAlign: 'left', fontWeight: 600 }}>{h}</th>
                                       ))}
                                     </tr>
@@ -709,6 +719,7 @@ export default function Equipment() {
                                         <td style={{ color: oDev > 0 ? C.danger : oDev < 0 ? C.success : C.muted, fontSize: 11, padding: '4px 8px', textAlign: 'right', fontWeight: 600 }}>
                                           {oDev > 0 ? '+' : ''}{fmtShort(oDev)} ₽
                                         </td>
+                                        <td style={{ color: ord.downtime_fmt && ord.downtime_fmt !== '0' ? C.accent : C.dim, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.downtime_fmt && ord.downtime_fmt !== '0' ? ord.downtime_fmt : '—'}</td>
                                       </tr>
                                       );
                                     })}
@@ -908,7 +919,7 @@ export default function Equipment() {
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                   <thead>
                                     <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                      {['Заказ', 'Дата нач.', 'Дата кон.', 'Вид работ', 'РМ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽', 'Откл. ₽'].map(h => (
+                                      {['Заказ', 'Дата нач.', 'Дата кон.', 'Вид работ', 'РМ', 'Статус', 'Текст работ', 'План ₽', 'Факт ₽', 'Откл. ₽', 'Простой'].map(h => (
                                         <th key={h} style={{ color: C.dim, fontSize: 10, padding: '4px 8px', textAlign: 'left', fontWeight: 600 }}>{h}</th>
                                       ))}
                                     </tr>
@@ -935,6 +946,7 @@ export default function Equipment() {
                                         <td style={{ color: fDev > 0 ? C.danger : fDev < 0 ? C.success : C.muted, fontSize: 11, padding: '4px 8px', textAlign: 'right', fontWeight: 600 }}>
                                           {fDev > 0 ? '+' : ''}{fmtShort(fDev)} ₽
                                         </td>
+                                        <td style={{ color: ord.downtime_fmt && ord.downtime_fmt !== '0' ? C.accent : C.dim, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>{ord.downtime_fmt && ord.downtime_fmt !== '0' ? ord.downtime_fmt : '—'}</td>
                                       </tr>
                                       );
                                     })}
