@@ -469,7 +469,7 @@ export default function Equipment() {
                                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
                                       <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                        {[{key:'eo',label:'Код ЕО'},{key:'name',label:'Название'},{key:'abc',label:'ABC'},{key:'n_orders',label:'Заказов'},{key:'plan',label:'План ₽'},{key:'fact',label:'Факт ₽'},{key:'dev',label:'Откл. ₽'},{key:'',label:''}].map(h => (
+                                        {[{key:'eo',label:'Код ЕО'},{key:'name',label:'Название'},{key:'abc',label:'ABC'},{key:'n_orders',label:'Заказов'},{key:'plan',label:'План ₽'},{key:'fact',label:'Факт ₽'},{key:'dev',label:'Откл. ₽'},{key:'downtime_fmt',label:'Простой'},{key:'',label:''}].map(h => (
                                           <th key={h.key||h.label} onClick={h.key ? (e) => { e.stopPropagation(); handleClassEoSort(h.key); } : undefined}
                                             style={{ color: classEoSort.col === h.key ? C.accent : C.dim, fontSize: 10, padding: '4px 8px', textAlign: 'left', fontWeight: 600, cursor: h.key ? 'pointer' : 'default', userSelect: 'none' }}>
                                             {h.label} {classEoSort.col === h.key ? (classEoSort.dir === 'desc' ? '▼' : '▲') : ''}
@@ -502,13 +502,16 @@ export default function Equipment() {
                                               <td style={{ color: eo.dev > 0 ? C.danger : eo.dev < 0 ? C.success : C.muted, fontSize: 11, textAlign: 'right', padding: '4px 8px', fontWeight: 600 }}>
                                                 {eo.dev > 0 ? '+' : ''}{fmtShort(eo.dev)} ₽
                                               </td>
+                                              <td style={{ color: eo.downtime_fmt && eo.downtime_fmt !== '0' ? C.accent : C.dim, fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>
+                                                {eo.downtime_fmt && eo.downtime_fmt !== '0' ? eo.downtime_fmt : '—'}
+                                              </td>
                                               <td style={{ padding: '4px 8px' }} onClick={e => e.stopPropagation()}>
                                                 <ExcelEoBtn eo={eo.eo} />
                                               </td>
                                             </tr>
                                             {isEoExpanded && (
                                               <tr>
-                                                <td colSpan={8} style={{ padding: 0 }}>
+                                                <td colSpan={9} style={{ padding: 0 }}>
                                                   <div style={{
                                                     background: 'linear-gradient(145deg, #1a2332 0%, #162030 100%)',
                                                     padding: '10px 14px', borderLeft: `3px solid ${C.cyan}`,
@@ -843,6 +846,7 @@ export default function Equipment() {
           { key: 'max_interval', label: 'Макс инт.' },
           { key: 'date_first', label: `Первый${freqDateHint}` },
           { key: 'date_last', label: `Последний${freqDateHint}` },
+          { key: 'downtime_fmt', label: 'Простой' },
         ];
         const sortedFreq = [...frequency].sort((a, b) => {
           const dir = freqSort.dir === 'desc' ? -1 : 1;
@@ -898,6 +902,7 @@ export default function Equipment() {
                         <td style={{ color: C.danger, fontSize: 12, textAlign: 'center', padding: '6px 10px' }}>{f.max_interval ?? '—'} дн.</td>
                         <td style={{ color: C.muted, fontSize: 11, padding: '6px 10px', whiteSpace: 'nowrap' }}>{f.date_first || '—'}</td>
                         <td style={{ color: C.muted, fontSize: 11, padding: '6px 10px', whiteSpace: 'nowrap' }}>{f.date_last || '—'}</td>
+                        <td style={{ color: f.downtime_fmt && f.downtime_fmt !== '0' ? C.accent : C.dim, fontSize: 11, padding: '6px 10px', whiteSpace: 'nowrap' }}>{f.downtime_fmt && f.downtime_fmt !== '0' ? f.downtime_fmt : '—'}</td>
                       </tr>
                       {isFreqExpanded && (
                         <tr>

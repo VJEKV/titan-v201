@@ -322,6 +322,10 @@ async def get_equipment(
         eo_abc_map = {}
         eo_date_first_map = {}
         eo_date_last_map = {}
+        eo_downtime_map = {}
+        if has_downtime:
+            eo_dt_agg = df_with_eo.groupby(eo_col)['_dt_sec'].sum()
+            eo_downtime_map = {str(k): _sf(v) for k, v in eo_dt_agg.items()}
         if 'Fact_N' in df_with_eo.columns:
             eo_fact_agg = df_with_eo.groupby(eo_col)['Fact_N'].sum()
             eo_fact_map = {str(k): _sf(v) for k, v in eo_fact_agg.items()}
@@ -372,6 +376,8 @@ async def get_equipment(
                     "abc": eo_abc_map.get(str(eo_id), ''),
                     "date_first": eo_date_first_map.get(str(eo_id), ''),
                     "date_last": eo_date_last_map.get(str(eo_id), ''),
+                    "downtime_sec": eo_downtime_map.get(str(eo_id), 0),
+                    "downtime_fmt": fmt_downtime(eo_downtime_map.get(str(eo_id), 0)),
                 })
         intervals.sort(key=lambda x: x['avg_interval'])
         frequency = intervals[:100]
@@ -427,6 +433,24 @@ async def get_equipment(
                 break
     no_class = int(len(df_no_eo))
 
+    # KPI простоя
+    downtime_kpi = None
+    if has_downtime:
+        dt_all = df_with_eo['_dt_sec']
+        dt_pos = dt_all[dt_all > 0]
+        eo_with_dt = 0
+        if len(dt_pos) > 0:
+            eo_vals = df_with_eo.loc[dt_all > 0, eo_col].dropna().astype(str)
+            eo_vals = eo_vals[~eo_vals.isin(['Н/Д', 'nan', 'None', '', '0', 'Не присвоено'])]
+            eo_with_dt = int(eo_vals.nunique())
+        downtime_kpi = {
+            "total_fmt": fmt_downtime(dt_all.sum()),
+            "avg_fmt": fmt_downtime(dt_pos.mean()) if len(dt_pos) > 0 else "0",
+            "max_fmt": fmt_downtime(dt_all.max()),
+            "n_downtimes": int((dt_all > 0).sum()),
+            "n_eo": eo_with_dt,
+        }
+
     return {
         "kpi": {
             "total_eo": total_eo,
@@ -437,6 +461,7 @@ async def get_equipment(
             "no_eo_orders": no_class,
             "avg_orders_per_eo": avg_orders_per_eo,
         },
+        "downtime_kpi": downtime_kpi,
         "abc_data": abc_data,
         "classes_data": classes_data,
         "per_eo_data": per_eo_data,
@@ -564,6 +589,11 @@ async def get_equipment_by_class(
     }
     if 'ABC' in df_cls.columns:
         agg_dict['abc'] = ('ABC', 'first')
+    # Простой — агрегируем только если колонка есть
+    has_dt = 'Простой_Сек' in df_cls.columns
+    if has_dt:
+        df_cls['_dt_sec'] = pd.to_numeric(df_cls['Простой_Сек'], errors='coerce').fillna(0)
+        agg_dict['downtime_sec'] = ('_dt_sec', 'sum')
 
     eo_grp = df_cls.groupby(eo_col).agg(**agg_dict).reset_index()
     eo_grp['dev'] = eo_grp['fact'] - eo_grp['plan']
@@ -571,7 +601,7 @@ async def get_equipment_by_class(
 
     items = []
     for _, r in eo_grp.iterrows():
-        items.append({
+        item = {
             "eo": str(r[eo_col]),
             "name": str(r['name'])[:60],
             "abc": str(r['abc']) if 'abc' in r.index and pd.notna(r['abc']) else '',
@@ -579,7 +609,11 @@ async def get_equipment_by_class(
             "plan": _sf(r['plan']),
             "fact": _sf(r['fact']),
             "dev": _sf(r['dev']),
-        })
+        }
+        if has_dt and 'downtime_sec' in r.index:
+            item['downtime_sec'] = _sf(r['downtime_sec'])
+            item['downtime_fmt'] = fmt_downtime(r['downtime_sec'])
+        items.append(item)
     return {"items": items}
 
 
