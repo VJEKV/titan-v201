@@ -13,6 +13,7 @@ from utils.filters import apply_hierarchy_filters, apply_extra_filters
 from core.aggregates import compute_aggregates
 from core.risk_scoring_v2 import apply_risk_scoring_v2
 from config.constants import METHODS_RISK
+from core.response_cache import cached_endpoint
 
 router = APIRouter()
 
@@ -133,6 +134,7 @@ def _get_df(session_id, filters_str, thresholds_str):
 
 
 @router.get("/api/tab/finance")
+@cached_endpoint(ttl=300)
 async def get_finance(
     session_id: str = Query(...),
     filters: str = Query("{}"),
@@ -328,6 +330,7 @@ async def get_finance(
 
 
 @router.get("/api/finance/orders")
+@cached_endpoint(ttl=300)
 async def get_finance_orders(
     session_id: str = Query(...),
     filters: str = Query("{}"),

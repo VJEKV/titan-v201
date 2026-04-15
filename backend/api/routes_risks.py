@@ -13,6 +13,7 @@ from utils.filters import apply_hierarchy_filters, apply_extra_filters
 from core.aggregates import compute_aggregates
 from core.risk_scoring_v2 import apply_risk_scoring_v2, _is_empty_eo, is_empty_eo_mask
 from config.constants import METHODS_RISK
+from core.response_cache import cached_endpoint
 
 router = APIRouter()
 DEFAULT_THRESHOLDS = {m: info['threshold_default'] for m, info in METHODS_RISK.items()}
@@ -22,6 +23,7 @@ def _sf(v):
 
 
 @router.get("/api/tab/risks")
+@cached_endpoint(ttl=300)
 async def get_risks(
     session_id: str = Query(...),
     filters: str = Query("{}"),

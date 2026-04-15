@@ -14,13 +14,17 @@ def fast_parse_series(series):
 
     Обрабатывает пробелы (разделители разрядов), запятые (десятичные).
     '1 234,56' → 1234.56
+
+    ТИТАН-5: использует non-regex replace для совместимости с pyarrow-backed
+    строковыми массивами (в новых pandas regex исполняется через RE2, который
+    не поддерживает \\u-escape-последовательности).
     """
-    return pd.to_numeric(
-        series.astype(str)
-              .str.replace(r'[\s\xa0\u202f\u00A0]+', '', regex=True)
-              .str.replace(',', '.'),
-        errors='coerce'
-    ).fillna(0.0)
+    s = series.astype(str)
+    # Все варианты пробельных символов (включая non-breaking)
+    for _ch in (' ', '\t', '\r', '\n', '\xa0', '\u202f'):
+        s = s.str.replace(_ch, '', regex=False)
+    s = s.str.replace(',', '.', regex=False)
+    return pd.to_numeric(s, errors='coerce').fillna(0.0)
 
 
 def safe_parse_datetime(series):

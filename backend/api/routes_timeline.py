@@ -15,6 +15,7 @@ from core.aggregates import compute_aggregates
 from core.risk_scoring_v2 import apply_risk_scoring_v2
 from utils.formatters import fmt_downtime
 from config.constants import METHODS_RISK
+from core.response_cache import cached_endpoint
 
 router = APIRouter()
 
@@ -27,6 +28,7 @@ def _sf(v):
 
 
 @router.get("/api/tab/timeline")
+@cached_endpoint(ttl=300)
 async def get_timeline(
     session_id: str = Query(...),
     filters: str = Query("{}"),

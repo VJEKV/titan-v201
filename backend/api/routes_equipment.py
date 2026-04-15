@@ -18,6 +18,7 @@ from core.aggregates import compute_aggregates
 from core.risk_scoring_v2 import apply_risk_scoring_v2, _is_empty_eo, is_empty_eo_mask, EMPTY_EO_VALUES
 from utils.formatters import fmt_downtime
 from config.constants import METHODS_RISK, ВНЕПЛАНОВЫЕ_ВИДЫ
+from core.response_cache import cached_endpoint
 
 router = APIRouter()
 DEFAULT_THRESHOLDS = {m: info['threshold_default'] for m, info in METHODS_RISK.items()}
@@ -80,6 +81,7 @@ def _get_df(session_id, filters_str, thresholds_str):
 
 
 @router.get("/api/tab/equipment")
+@cached_endpoint(ttl=300)
 async def get_equipment(
     session_id: str = Query(...),
     filters: str = Query("{}"),
@@ -476,6 +478,7 @@ async def get_equipment(
 
 
 @router.get("/api/equipment/orders")
+@cached_endpoint(ttl=300)
 async def get_equipment_orders(
     session_id: str = Query(...),
     filters: str = Query("{}"),
@@ -547,6 +550,7 @@ async def get_equipment_orders(
 
 
 @router.get("/api/equipment/by-class")
+@cached_endpoint(ttl=300)
 async def get_equipment_by_class(
     session_id: str = Query(...),
     filters: str = Query("{}"),
@@ -618,6 +622,7 @@ async def get_equipment_by_class(
 
 
 @router.get("/api/export/equipment-class-excel")
+@cached_endpoint(ttl=300)
 async def export_equipment_class_excel(
     session_id: str = Query(...),
     filters: str = Query("{}"),
@@ -675,6 +680,7 @@ async def export_equipment_class_excel(
 
 
 @router.get("/api/export/equipment-excel")
+@cached_endpoint(ttl=300)
 async def export_equipment_excel(
     session_id: str = Query(...),
     filters: str = Query("{}"),

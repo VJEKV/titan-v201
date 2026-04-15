@@ -37,7 +37,7 @@ const FIELD_SAP_MAP = {
 };
 
 export default function Planners() {
-  const { sessionId, filters, thresholds } = useFilters();
+  const { debouncedFilters, debouncedThresholds, sessionId, filters, thresholds } = useFilters();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [hoveredField, setHoveredField] = useState(null);
@@ -74,17 +74,17 @@ export default function Planners() {
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
-    apiGet('/api/tab/planners', { session_id: sessionId, filters, thresholds })
+    apiGet('/api/tab/planners', { session_id: sessionId, debouncedFilters, debouncedThresholds })
       .then(setData).catch(() => {}).finally(() => setLoading(false));
     setIngrpExpanded(null); setIngrpOrders([]); setIngrpPage(1); setIngrpSort({ col: 'date_start', dir: 'desc' });
     setUserExpanded(null); setUserOrders([]); setUserPage(1); setUserSort({ col: 'date_start', dir: 'desc' });
     setRmExpanded(null); setRmOrders([]); setRmPage(1); setRmSort({ col: 'date_start', dir: 'desc' });
-  }, [sessionId, filters, thresholds]);
+  }, [sessionId, debouncedFilters, debouncedThresholds]);
 
   const fetchIngrpOrders = (name, page, sort = ingrpSort) => {
     setIngrpLoading(true);
     apiGet('/api/planners/orders', {
-      session_id: sessionId, filters, thresholds,
+      session_id: sessionId, debouncedFilters, debouncedThresholds,
       ingrp: name, page, page_size: 20,
       sort_by: sort.col, sort_dir: sort.dir,
     })
@@ -105,7 +105,7 @@ export default function Planners() {
   const fetchUserOrders = (name, page, sort = userSort) => {
     setUserLoading(true);
     apiGet('/api/planners/user_orders', {
-      session_id: sessionId, filters, thresholds,
+      session_id: sessionId, debouncedFilters, debouncedThresholds,
       user: name, page, page_size: 20,
       sort_by: sort.col, sort_dir: sort.dir,
     })
@@ -125,12 +125,12 @@ export default function Planners() {
 
   const exportIngrpExcel = (name) => {
     apiDownload('/api/export/orders_excel', {
-      session_id: sessionId, filters, thresholds, group_by: 'ingrp', group_value: name,
+      session_id: sessionId, debouncedFilters, debouncedThresholds, group_by: 'ingrp', group_value: name,
     }).catch(() => alert('Ошибка при выгрузке Excel'));
   };
   const exportUserExcel = (name) => {
     apiDownload('/api/export/orders_excel', {
-      session_id: sessionId, filters, thresholds, group_by: 'user', group_value: name,
+      session_id: sessionId, debouncedFilters, debouncedThresholds, group_by: 'user', group_value: name,
     }).catch(() => alert('Ошибка при выгрузке Excel'));
   };
 
@@ -138,7 +138,7 @@ export default function Planners() {
   const fetchRmOrders = (name, page, sort = rmSort) => {
     setRmLoading(true);
     apiGet('/api/workplaces/orders', {
-      session_id: sessionId, filters, thresholds,
+      session_id: sessionId, debouncedFilters, debouncedThresholds,
       rm: name, page, page_size: 20,
       sort_by: sort.col, sort_dir: sort.dir,
     })
@@ -157,7 +157,7 @@ export default function Planners() {
   };
   const exportRmExcel = (name) => {
     apiDownload('/api/export/orders_excel', {
-      session_id: sessionId, filters, thresholds, group_by: 'rm', group_value: name,
+      session_id: sessionId, debouncedFilters, debouncedThresholds, group_by: 'rm', group_value: name,
     }).catch(() => alert('Ошибка при выгрузке Excel'));
   };
 
@@ -172,7 +172,7 @@ export default function Planners() {
   /** Экспорт скоринга в Excel (через бэкенд) */
   const exportScoringExcel = () => {
     apiDownload('/api/planners/scoring_excel', {
-      session_id: sessionId, filters, thresholds,
+      session_id: sessionId, debouncedFilters, debouncedThresholds,
     }).catch(err => {
       console.error('Ошибка экспорта:', err);
       alert('Ошибка при выгрузке Excel. Попробуйте ещё раз.');

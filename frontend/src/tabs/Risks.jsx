@@ -140,7 +140,7 @@ function MethodologyBlock() {
 }
 
 export default function Risks({ setActiveMethod, setActiveTab }) {
-  const { sessionId, filters, thresholds } = useFilters();
+  const { debouncedFilters, debouncedThresholds, sessionId, filters, thresholds } = useFilters();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -149,12 +149,12 @@ export default function Risks({ setActiveMethod, setActiveTab }) {
   const loadData = useCallback(() => {
     if (!sessionId) return;
     setLoading(true);
-    apiGet('/api/tab/risks', { session_id: sessionId, filters, thresholds, page, page_size: pageSize })
+    apiGet('/api/tab/risks', { session_id: sessionId, debouncedFilters, debouncedThresholds, page, page_size: pageSize })
       .then(setData).catch(() => {}).finally(() => setLoading(false));
-  }, [sessionId, filters, thresholds, page, pageSize]);
+  }, [sessionId, debouncedFilters, debouncedThresholds, page, pageSize]);
 
   useEffect(() => { loadData(); }, [loadData]);
-  useEffect(() => { setPage(1); }, [filters, thresholds]);
+  useEffect(() => { setPage(1); }, [debouncedFilters, debouncedThresholds]);
 
   if (loading && !data) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import { useDebouncedValue } from './useDebouncedValue';
 
 const FiltersContext = createContext(null);
 
@@ -32,6 +33,11 @@ export function FiltersProvider({ children }) {
   const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
   const [fileInfo, setFileInfo] = useState(null);
 
+  // ТИТАН-5: debounced версии — для использования в эндпоинтах вместо мгновенных,
+  // чтобы не дёргать API на каждое нажатие клавиши / клик / шаг ползунка.
+  const debouncedFilters = useDebouncedValue(filters, 300);
+  const debouncedThresholds = useDebouncedValue(thresholds, 400);
+
   const updateFilter = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
@@ -57,6 +63,8 @@ export function FiltersProvider({ children }) {
       filters, setFilters, updateFilter, updateHierarchy, resetFilters,
       thresholds, updateThreshold,
       fileInfo, setFileInfo,
+      // ТИТАН-5: debounced версии для запросов к API
+      debouncedFilters, debouncedThresholds,
     }}>
       {children}
     </FiltersContext.Provider>

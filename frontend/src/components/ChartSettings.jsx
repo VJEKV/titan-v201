@@ -76,7 +76,19 @@ export function useChartSettings(chartId) {
   const paletteColors = CHART_PALETTES[activePalette]?.colors || CHART_PALETTES.titan.colors;
   const fontSizes = FONT_SIZE_PRESETS[settings.fontSize] || FONT_SIZE_PRESETS.M;
 
-  return { ...settings, _rev, palette: activePalette, paletteColors, fontSizes, getColorsForChart };
+  return {
+    ...settings,
+    _rev,
+    palette: activePalette,
+    paletteColors,
+    fontSizes,
+    getColorsForChart,
+    /** Истина, если пользователь явно выбрал палитру для этого графика
+     *  (а не наследует глобальную) — нужно для случаев, когда график имеет
+     *  семантические цвета по умолчанию (ABC, методы) и должен переключаться
+     *  на абстрактную палитру только по явному выбору. */
+    localPalette,
+  };
 }
 
 /** Иконка шестерёнки SVG */

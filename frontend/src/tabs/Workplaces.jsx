@@ -26,7 +26,7 @@ function fmtNum(v) {
 }
 
 export default function Workplaces() {
-  const { sessionId, filters, thresholds } = useFilters();
+  const { debouncedFilters, debouncedThresholds, sessionId, filters, thresholds } = useFilters();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const csDonut = useChartSettings('wp-donut');
@@ -46,15 +46,15 @@ export default function Workplaces() {
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
-    apiGet('/api/tab/workplaces', { session_id: sessionId, filters, thresholds })
+    apiGet('/api/tab/workplaces', { session_id: sessionId, debouncedFilters, debouncedThresholds })
       .then(setData).catch(() => {}).finally(() => setLoading(false));
     setRmExpanded(null); setRmOrders([]); setRmPage(1); setRmSort({ col: 'date_start', dir: 'desc' });
-  }, [sessionId, filters, thresholds]);
+  }, [sessionId, debouncedFilters, debouncedThresholds]);
 
   const fetchRmOrders = (name, page, sort = rmSort) => {
     setRmLoading(true);
     apiGet('/api/workplaces/orders', {
-      session_id: sessionId, filters, thresholds,
+      session_id: sessionId, debouncedFilters, debouncedThresholds,
       rm: name, page, page_size: 20,
       sort_by: sort.col, sort_dir: sort.dir,
     })
@@ -74,7 +74,7 @@ export default function Workplaces() {
 
   const exportRmExcel = (name) => {
     apiDownload('/api/export/orders_excel', {
-      session_id: sessionId, filters, thresholds, group_by: 'rm', group_value: name,
+      session_id: sessionId, debouncedFilters, debouncedThresholds, group_by: 'rm', group_value: name,
     }).catch(() => alert('Ошибка при выгрузке Excel'));
   };
 

@@ -9,11 +9,13 @@ from fastapi.responses import JSONResponse
 from state.session import get_session
 from utils.filters import get_hierarchy_options
 from config.constants import HIERARCHY_LEVELS
+from core.response_cache import cached_endpoint
 
 router = APIRouter()
 
 
 @router.get("/api/filters/options")
+@cached_endpoint(ttl=300)
 async def get_filter_options(session_id: str = Query(...)):
     """Доступные значения фильтров."""
     session = get_session(session_id)

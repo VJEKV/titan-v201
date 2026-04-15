@@ -12,6 +12,7 @@ const TABS = [
   { id: 'planners',   label: 'Плановики',        icon: '👥', neon: '#10b981' },
   { id: 'workplaces', label: 'Раб.места',        icon: '🏗️', neon: '#ec4899' },
   { id: 'risks',      label: 'Приоритеты',       icon: '⚠️', neon: '#f97316' },
+  { id: 'exploitation', label: 'Эксплуатация',   icon: '📈', neon: '#22d3ee' },
   { id: 'quality',    label: 'Качество данных',   icon: '📊', neon: '#3b82f6' },
   { id: 'orders',     label: 'Просмотр заказов',  icon: '📋', neon: '#6366f1' },
 ];

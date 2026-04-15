@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { FiltersProvider, useFilters } from './hooks/useFilters';
 import { StarredProvider } from './hooks/useStarred';
 import { C } from './theme/arctic';
@@ -10,19 +10,21 @@ import UploadScreen from './components/UploadScreen';
 import KpiRow from './components/KpiRow';
 import KpiCard from './components/KpiCard';
 import { apiGet } from './api/client';
-import { useEffect } from 'react';
 
-// Вкладки
-import Finance from './tabs/Finance';
-import Timeline from './tabs/Timeline';
-import WorkTypes from './tabs/WorkTypes';
-import Planners from './tabs/Planners';
-import Workplaces from './tabs/Workplaces';
-import Risks from './tabs/Risks';
-import Quality from './tabs/Quality';
-import Equipment from './tabs/Equipment';
-import Orders from './tabs/Orders';
-import ChatWidget from './components/ChatWidget';
+// ТИТАН-5: Code splitting вкладок через React.lazy.
+// Каждая вкладка грузится только при первом открытии — стартовый бандл
+// уменьшается, время first paint сокращается.
+const Finance = lazy(() => import('./tabs/Finance'));
+const Timeline = lazy(() => import('./tabs/Timeline'));
+const WorkTypes = lazy(() => import('./tabs/WorkTypes'));
+const Planners = lazy(() => import('./tabs/Planners'));
+const Workplaces = lazy(() => import('./tabs/Workplaces'));
+const Risks = lazy(() => import('./tabs/Risks'));
+const Quality = lazy(() => import('./tabs/Quality'));
+const Equipment = lazy(() => import('./tabs/Equipment'));
+const Orders = lazy(() => import('./tabs/Orders'));
+const Exploitation = lazy(() => import('./tabs/Exploitation'));
+const ChatWidget = lazy(() => import('./components/ChatWidget'));
 
 /** Форматирование числа с пробелами разрядов */
 function fmtNum(v) {
@@ -47,6 +49,7 @@ const TAB_COMPONENTS = {
   'planners': Planners,
   'workplaces': Workplaces,
   'risks': Risks,
+  'exploitation': Exploitation,
   'quality': Quality,
   'equipment': Equipment,
   'orders': Orders,
@@ -108,11 +111,6 @@ function AppContent() {
                 <KpiCard title="ОТКЛОНЕНИЕ" value={`${kpi.dev_fmt || fmtShort(Math.abs(kpi.dev))} \u20BD`} sub={`${kpi.dev_pct > 0 ? '+' : ''}${kpi.dev_pct}%`} color={kpi.dev > 0 ? C.danger : C.success} />
                 <KpiCard title="С РИСКОМ" value={fmtNum(kpi.risk_count)} sub={`${kpi.risk_pct}%`} color={C.warning} />
                 <KpiCard title="КАЧЕСТВО ДАННЫХ" value={`${kpi.completeness}%`} color={kpi.completeness > 80 ? C.success : C.warning} />
-                {kpi.downtime_stats && kpi.downtime_stats.total_fmt !== '0' && (<>
-                  <KpiCard title="ПРОСТОЙ (Σ)" value={kpi.downtime_stats.total_fmt} sub={`${kpi.downtime_stats.eo_with_downtime} ЕО / ${kpi.downtime_stats.orders_with_downtime} заказов`} color={C.accent} />
-                  <KpiCard title="ПРОСТОЙ (СР.)" value={kpi.downtime_stats.avg_fmt} color={C.accent} />
-                  <KpiCard title="ПРОСТОЙ (МАКС)" value={kpi.downtime_stats.max_fmt} color={C.accent} />
-                </>)}
               </KpiRow>
               {/* KPI — статистика по выгрузке */}
               {kpi.stats && (
@@ -130,12 +128,16 @@ function AppContent() {
           {/* Вкладки */}
           <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
-          {/* Содержимое вкладки */}
-          {TabComponent && <TabComponent activeMethod={activeMethod} setActiveMethod={setActiveMethod} setActiveTab={setActiveTab} />}
+          {/* Содержимое вкладки — оборачиваем в Suspense для lazy-загрузки */}
+          <Suspense fallback={<p style={{ color: C.muted, padding: 24 }}>Загрузка вкладки…</p>}>
+            {TabComponent && <TabComponent activeMethod={activeMethod} setActiveMethod={setActiveMethod} setActiveTab={setActiveTab} />}
+          </Suspense>
         </main>
       </div>
       <Footer />
-      <ChatWidget />
+      <Suspense fallback={null}>
+        <ChatWidget />
+      </Suspense>
     </div>
   );
 }

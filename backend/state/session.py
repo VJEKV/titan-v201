@@ -22,6 +22,9 @@ def create_session(df: pd.DataFrame, agg: dict) -> str:
     _sessions[session_id] = {
         'df': df,
         'agg': agg,
+        'bdrv_df': None,          # ТИТАН-5: BDRV parsed DataFrame (опционально)
+        'bdrv_parquet_path': None,  # ТИТАН-5: путь к кэшу BDRV
+        'bdrv_summary': None,       # {eo_count, tag_count, rows, date_min, date_max}
         'timestamp': time.time(),
     }
     return session_id
@@ -38,9 +41,27 @@ def get_session(session_id: str) -> Optional[dict]:
     return None
 
 
+def set_bdrv(session_id: str, df: pd.DataFrame, parquet_path: str, summary: dict) -> bool:
+    """Прикрепить BDRV DataFrame к сессии."""
+    session = _sessions.get(session_id)
+    if not session:
+        return False
+    session['bdrv_df'] = df
+    session['bdrv_parquet_path'] = parquet_path
+    session['bdrv_summary'] = summary
+    session['timestamp'] = time.time()
+    return True
+
+
 def cleanup_old_sessions():
     """Удалить устаревшие сессии."""
     now = time.time()
     expired = [sid for sid, s in _sessions.items() if now - s['timestamp'] > SESSION_TTL]
     for sid in expired:
+        # Закрываем DuckDB-connection и удаляем parquet-кэш этой сессии, если есть
+        try:
+            from core import duck
+            duck.close_session(sid)
+        except Exception:
+            pass
         del _sessions[sid]

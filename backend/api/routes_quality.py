@@ -13,6 +13,7 @@ from utils.filters import apply_hierarchy_filters, apply_extra_filters
 from core.aggregates import compute_aggregates
 from core.risk_scoring_v2 import apply_risk_scoring_v2
 from config.constants import METHODS_RISK, FIELD_MAPPING, RENAMED_TO_ORIGINAL, EMPTY_VALUES
+from core.response_cache import cached_endpoint
 
 router = APIRouter()
 DEFAULT_THRESHOLDS = {m: info['threshold_default'] for m, info in METHODS_RISK.items()}
@@ -50,6 +51,7 @@ def _find_columns_to_check(df_columns, source_columns=None):
 
 
 @router.get("/api/tab/quality")
+@cached_endpoint(ttl=300)
 async def get_quality(
     session_id: str = Query(...),
     filters: str = Query("{}"),

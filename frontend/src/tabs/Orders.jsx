@@ -26,7 +26,7 @@ function fmtNum(v) {
 }
 
 export default function Orders({ activeMethod, setActiveMethod }) {
-  const { sessionId, filters, thresholds } = useFilters();
+  const { debouncedFilters, debouncedThresholds, sessionId, filters, thresholds } = useFilters();
   const { starredOrders, starredEO, toggleOrder, toggleEO, isOrderStarred, isEOStarred, clearAll, totalStarred } = useStarred();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -127,17 +127,17 @@ export default function Orders({ activeMethod, setActiveMethod }) {
       result = { ...result, starred_orders: [...starredOrders], starred_eo: [...starredEO] };
     }
     return result;
-  }, [filters, appliedQf, starredActive, starredOrders, starredEO, totalStarred]);
+  }, [debouncedFilters, appliedQf, starredActive, starredOrders, starredEO, totalStarred]);
 
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
     apiGet('/api/tab/orders', {
-      session_id: sessionId, filters: buildFilters(), thresholds,
+      session_id: sessionId, filters: buildFilters(), debouncedThresholds,
       page, page_size: 50, sort, order,
     })
       .then(setData).catch(() => {}).finally(() => setLoading(false));
-  }, [sessionId, filters, thresholds, page, sort, order, appliedQf, starredActive, starredOrders, starredEO]);
+  }, [sessionId, debouncedFilters, debouncedThresholds, page, sort, order, appliedQf, starredActive, starredOrders, starredEO]);
 
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;
@@ -446,7 +446,7 @@ export default function Orders({ activeMethod, setActiveMethod }) {
 
       {/* Экспорт */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-        <button onClick={() => apiDownload('/api/export/excel', { session_id: sessionId, filters: buildFilters(), thresholds })}
+        <button onClick={() => apiDownload('/api/export/excel', { session_id: sessionId, filters: buildFilters(), debouncedThresholds })}
           style={{
             padding: '10px 20px', background: C.surface, border: `1px solid ${C.accent}`,
             borderRadius: 8, color: C.accent, cursor: 'pointer', fontSize: 13,

@@ -45,7 +45,7 @@ function sortMonthLabels(labels) {
 }
 
 export default function Equipment() {
-  const { sessionId, filters, thresholds } = useFilters();
+  const { debouncedFilters, debouncedThresholds, sessionId, filters, thresholds } = useFilters();
   const { toggleOrder, toggleEO, isOrderStarred, isEOStarred } = useStarred();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -71,7 +71,7 @@ export default function Equipment() {
     }
     setExpandedEo(eoCode);
     setExpandedLoading(true);
-    apiGet('/api/equipment/orders', { session_id: sessionId, filters, thresholds, eo_code: eoCode })
+    apiGet('/api/equipment/orders', { session_id: sessionId, debouncedFilters, debouncedThresholds, eo_code: eoCode })
       .then(res => setExpandedOrders(res.orders || []))
       .catch(() => setExpandedOrders([]))
       .finally(() => setExpandedLoading(false));
@@ -110,7 +110,7 @@ export default function Equipment() {
     setExpandedClassEo(null); setClassEoOrders([]);
     setClassEoSort({ col: 'fact', dir: 'desc' });
     setClassEoLoading(true);
-    apiGet('/api/equipment/by-class', { session_id: sessionId, filters, thresholds, class_name: className })
+    apiGet('/api/equipment/by-class', { session_id: sessionId, debouncedFilters, debouncedThresholds, class_name: className })
       .then(res => setClassEoList(res.items || []))
       .catch(() => setClassEoList([]))
       .finally(() => setClassEoLoading(false));
@@ -124,7 +124,7 @@ export default function Equipment() {
     setExpandedClassEo(eoCode);
     setClassOrdSort({ col: 'date_start', dir: 'desc' });
     setClassEoOrdersLoading(true);
-    apiGet('/api/equipment/orders', { session_id: sessionId, filters, thresholds, eo_code: eoCode })
+    apiGet('/api/equipment/orders', { session_id: sessionId, debouncedFilters, debouncedThresholds, eo_code: eoCode })
       .then(res => setClassEoOrders(res.orders || []))
       .catch(() => setClassEoOrders([]))
       .finally(() => setClassEoOrdersLoading(false));
@@ -152,7 +152,7 @@ export default function Equipment() {
     }
     setFreqExpandedEo(eoCode);
     setFreqExpandedLoading(true);
-    apiGet('/api/equipment/orders', { session_id: sessionId, filters, thresholds, eo_code: eoCode })
+    apiGet('/api/equipment/orders', { session_id: sessionId, debouncedFilters, debouncedThresholds, eo_code: eoCode })
       .then(res => setFreqExpandedOrders(res.orders || []))
       .catch(() => setFreqExpandedOrders([]))
       .finally(() => setFreqExpandedLoading(false));
@@ -161,9 +161,9 @@ export default function Equipment() {
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
-    apiGet('/api/tab/equipment', { session_id: sessionId, filters, thresholds })
+    apiGet('/api/tab/equipment', { session_id: sessionId, debouncedFilters, debouncedThresholds })
       .then(setData).catch(() => {}).finally(() => setLoading(false));
-  }, [sessionId, filters, thresholds]);
+  }, [sessionId, debouncedFilters, debouncedThresholds]);
 
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;
@@ -236,7 +236,7 @@ export default function Equipment() {
 
   /** Кнопка выгрузки Excel по ЕО */
   const ExcelEoBtn = ({ eo }) => (
-    <button onClick={() => apiDownload('/api/export/equipment-excel', { session_id: sessionId, filters, thresholds, eo })}
+    <button onClick={() => apiDownload('/api/export/equipment-excel', { session_id: sessionId, debouncedFilters, debouncedThresholds, eo })}
       style={{ padding: '2px 8px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 4, color: C.accent, cursor: 'pointer', fontSize: 10 }}>
       Excel
     </button>
@@ -263,8 +263,14 @@ export default function Equipment() {
     { key: '', label: '', sortable: false },
   ];
 
-  /** Цвета ABC для DonutWithLegend — из справочника критичности */
-  const abcColors = abc_data.map(d => ABC_COLORS[d.abc] || C.muted);
+  /** Цвета ABC для DonutWithLegend.
+   *  Если пользователь явно выбрал палитру через шестерёнку (csAbc.localPalette) —
+   *  применяем её циклически. Иначе используем семантические цвета ABC_COLORS
+   *  (А = красный, B = оранжевый, C = синий и т.п.).
+   *  Поддерживаем коды (A/B/C/D/E) и названия категорий ("Критично", "Не критично" и т.п.). */
+  const abcColors = csAbc.localPalette
+    ? abc_data.map((_, i) => csAbc.paletteColors[i % csAbc.paletteColors.length])
+    : abc_data.map(d => ABC_COLORS[d.abc] || ABC_COLORS[String(d.abc).trim()] || csAbc.paletteColors[abc_data.indexOf(d) % csAbc.paletteColors.length]);
 
   /** Рендер графика классов по типу */
   const renderClassesChart = () => {
@@ -447,7 +453,7 @@ export default function Equipment() {
                             {r.downtime_fmt && r.downtime_fmt !== '0' ? r.downtime_fmt : '—'}
                           </td>
                           <td style={{ padding: '6px 10px' }} onClick={e => e.stopPropagation()}>
-                            <button onClick={() => apiDownload('/api/export/equipment-class-excel', { session_id: sessionId, filters, thresholds, class_name: r.class_name })}
+                            <button onClick={() => apiDownload('/api/export/equipment-class-excel', { session_id: sessionId, debouncedFilters, debouncedThresholds, class_name: r.class_name })}
                               style={{ padding: '2px 8px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 4, color: C.accent, cursor: 'pointer', fontSize: 10 }}>
                               Excel
                             </button>
@@ -762,7 +768,7 @@ export default function Equipment() {
                     <td style={{ color: C.danger, fontSize: 12, textAlign: 'center', fontWeight: 600, padding: '6px 10px' }}>{r.n_orders}</td>
                     <td style={{ color: C.text, fontSize: 12, textAlign: 'right', padding: '6px 10px' }}>{fmtShort(r.fact)} ₽</td>
                     <td style={{ padding: '6px 10px' }}>
-                      <button onClick={() => apiDownload('/api/export/equipment-class-excel', { session_id: sessionId, filters, thresholds, class_name: r.class_name, unplanned: true })}
+                      <button onClick={() => apiDownload('/api/export/equipment-class-excel', { session_id: sessionId, debouncedFilters, debouncedThresholds, class_name: r.class_name, unplanned: true })}
                         style={{ padding: '2px 8px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 4, color: C.accent, cursor: 'pointer', fontSize: 10 }}>
                         Excel
                       </button>

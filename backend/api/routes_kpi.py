@@ -12,6 +12,7 @@ from state.session import get_session
 from utils.filters import apply_hierarchy_filters, apply_extra_filters
 from core.aggregates import compute_aggregates
 from core.risk_scoring_v2 import apply_risk_scoring_v2
+from core.response_cache import cached_endpoint
 from utils.formatters import fmt_short, fmt, fmt_downtime
 from config.constants import METHODS_RISK, FIELD_MAPPING, RENAMED_TO_ORIGINAL, EMPTY_VALUES
 
@@ -68,6 +69,7 @@ def _calc_fill_rate(df, source_columns=None):
 
 
 @router.get("/api/kpi")
+@cached_endpoint(ttl=300)
 async def get_kpi(
     session_id: str = Query(...),
     filters: str = Query("{}"),

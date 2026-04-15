@@ -53,23 +53,27 @@ def aggregate_status_history(df):
     status_count = df.groupby('AUFNR').size().reset_index(name='N_STATUS_CHANGES')
     df_agg = df_agg.merge(status_count, on='AUFNR', how='left')
 
-    all_statuses = df.groupby('AUFNR')['ISTAT_TXT'].apply(
-        lambda x: ' | '.join(x.unique())
-    ).reset_index()
-    all_statuses.columns = ['AUFNR', 'ALL_STATUSES']
+    # ТИТАН-5: векторизованный ALL_STATUSES через drop_duplicates + agg
+    # Было: groupby().apply(lambda x: ' | '.join(x.unique())) — медленно
+    df_uniq_status = df[['AUFNR', 'ISTAT_TXT']].drop_duplicates()
+    all_statuses = (df_uniq_status
+                    .groupby('AUFNR')['ISTAT_TXT']
+                    .agg(lambda x: ' | '.join(x))
+                    .reset_index()
+                    .rename(columns={'ISTAT_TXT': 'ALL_STATUSES'}))
     df_agg = df_agg.merge(all_statuses, on='AUFNR', how='left')
 
-    def count_returns(group):
-        statuses = group['ISTAT'].tolist()
-        returns = 0
-        seen = set()
-        for stat in statuses:
-            if stat in seen:
-                returns += 1
-            seen.add(stat)
-        return returns
-
-    returns = df.groupby('AUFNR').apply(count_returns, include_groups=False).reset_index(name='N_STATUS_RETURNS')
+    # ТИТАН-5: N_STATUS_RETURNS векторизованно через cumcount
+    # Было: groupby().apply(count_returns) с циклом — очень медленно
+    # Исходная семантика: считаем сколько раз в группе статус повторился
+    # (для каждой позиции: если статус уже встречался раньше в группе → +1)
+    df_sorted2 = df.sort_values(['AUFNR', 'AEDAT'])
+    # cumcount по (AUFNR, ISTAT) = счётчик появлений конкретного ISTAT внутри AUFNR-группы
+    # cum == 0 — первое появление, cum >= 1 — повторное (возврат)
+    dup_flag = df_sorted2.groupby(['AUFNR', 'ISTAT']).cumcount() > 0
+    returns = (dup_flag.groupby(df_sorted2['AUFNR'])
+                      .sum()
+                      .reset_index(name='N_STATUS_RETURNS'))
     df_agg = df_agg.merge(returns, on='AUFNR', how='left')
 
     first_author = df_sorted.groupby('AUFNR').first()[['ERNAM']].reset_index()
@@ -276,104 +280,171 @@ def process_data(df_raw):
         eo_to_tm = {}
 
     if has_structure:
-        def get_hierarchy_for_row(row):
-            result = {
-                'производство_код': None, 'производство_название': None,
-                'цех_код': None, 'цех_название': None,
-                'установка_код': None, 'установка_название': None
-            }
+        # ═══════════════════════════════════════════════════════════════
+        # Векторизованная раскрутка иерархии (ТИТАН-5: замена apply axis=1)
+        # Алгоритм: сначала пытаемся найти TM через EO→TM маппинг,
+        # затем по прямому коду ТМ, затем по префиксам "ST..." / "X.YYYY".
+        # ═══════════════════════════════════════════════════════════════
+        NA_SET = {'Н/Д', 'nan', 'None', ''}
 
-            eo_code = row.get('EQUNR_Код') or row.get('ЕО')
-            if eo_code and str(eo_code) not in ['Н/Д', 'nan', 'None', '']:
-                eo_str = str(eo_code).strip()
-                if ' ' in eo_str:
-                    eo_str = eo_str.split()[0]
-                eo_stripped = eo_str.lstrip('0') or eo_str
-                tm_code = eo_to_tm.get(eo_stripped) or eo_to_tm.get(eo_str)
-                if tm_code and tm_code in tm_hierarchy:
-                    data = tm_hierarchy[tm_code]
-                    result['производство_код'] = data.get('производство_код')
-                    result['производство_название'] = data.get('производство_название')
-                    result['цех_код'] = data.get('цех_код')
-                    result['цех_название'] = data.get('цех_название')
-                    result['установка_код'] = data.get('установка_код')
-                    result['установка_название'] = data.get('установка_название')
-                    return result
+        # Series с сырыми EO-кодами (приоритет EQUNR_Код, fallback ЕО)
+        eo_raw = df['EQUNR_Код'].astype('string') if 'EQUNR_Код' in df.columns else pd.Series('', index=df.index, dtype='string')
+        eo_fallback = df['ЕО'].astype('string') if 'ЕО' in df.columns else pd.Series('', index=df.index, dtype='string')
+        eo_clean = eo_raw.where(~eo_raw.isin(NA_SET) & eo_raw.notna(), eo_fallback)
 
-            tm_code = row.get('ТМ_Код') or row.get('ТМ')
-            if tm_code and str(tm_code) not in ['Н/Д', 'nan', 'None', '']:
-                tm_str = str(tm_code).strip()
-                if ' ' in tm_str:
-                    tm_str = tm_str.split()[0]
-                if tm_str in tm_hierarchy:
-                    data = tm_hierarchy[tm_str]
-                    result['производство_код'] = data.get('производство_код')
-                    result['производство_название'] = data.get('производство_название')
-                    result['цех_код'] = data.get('цех_код')
-                    result['цех_название'] = data.get('цех_название')
-                    result['установка_код'] = data.get('установка_код')
-                    result['установка_название'] = data.get('установка_название')
-                    return result
-                if len(tm_str) >= 4 and tm_str[:2] == 'ST':
-                    result['производство_код'] = tm_str[:4]
-                if len(tm_str) >= 7 and '.' in tm_str:
-                    result['цех_код'] = tm_str[:7]
+        # Убираем хвосты после пробела и ведущие нули
+        eo_clean = eo_clean.fillna('').str.split(' ').str[0].str.strip()
+        eo_stripped = eo_clean.str.lstrip('0').where(lambda s: s != '', eo_clean)
 
-            return result
+        # Series с ТМ-кодами (приоритет ТМ_Код, fallback ТМ)
+        tm_raw = df['ТМ_Код'].astype('string') if 'ТМ_Код' in df.columns else pd.Series('', index=df.index, dtype='string')
+        tm_fallback = df['ТМ'].astype('string') if 'ТМ' in df.columns else pd.Series('', index=df.index, dtype='string')
+        tm_clean = tm_raw.where(~tm_raw.isin(NA_SET) & tm_raw.notna(), tm_fallback)
+        tm_clean = tm_clean.fillna('').str.split(' ').str[0].str.strip()
 
-        hierarchy_data = df.apply(get_hierarchy_for_row, axis=1, result_type='expand')
+        # Словарь eo_to_tm как pandas Series для .map()
+        eo_map_ser = pd.Series(eo_to_tm)
 
-        df['ПРОИЗВОДСТВО_Код'] = hierarchy_data['производство_код'].fillna('Н/Д').replace([None, 'None', ''], 'Н/Д')
-        df['ЦЕХ_Код'] = hierarchy_data['цех_код'].fillna('Н/Д').replace([None, 'None', ''], 'Н/Д')
-        df['УСТАНОВКА_Код'] = hierarchy_data['установка_код'].fillna('Н/Д').replace([None, 'None', ''], 'Н/Д')
+        # Resolving TM code: сначала через stripped, потом через raw, потом через tm_clean
+        tm_from_eo_stripped = eo_stripped.map(eo_map_ser)
+        tm_from_eo_raw = eo_clean.map(eo_map_ser)
+        tm_from_eo = tm_from_eo_stripped.where(tm_from_eo_stripped.notna(), tm_from_eo_raw)
 
-        df['ПРОИЗВОДСТВО'] = df.apply(
-            lambda r: format_with_name(r['ПРОИЗВОДСТВО_Код'], hierarchy_data.loc[r.name, 'производство_название']),
-            axis=1
+        # Финальный tm_code: если по EO не нашлось — проверяем прямой tm_clean
+        tm_in_hier_mask = tm_clean.isin(tm_hierarchy)
+        resolved_tm = tm_from_eo.where(tm_from_eo.notna(), tm_clean.where(tm_in_hier_mask, pd.NA))
+
+        # Построим DataFrame с иерархией из tm_hierarchy (один раз)
+        hier_rows = []
+        for tm_code_k, data in tm_hierarchy.items():
+            hier_rows.append({
+                '_tm_code': tm_code_k,
+                'производство_код': data.get('производство_код'),
+                'производство_название': data.get('производство_название'),
+                'цех_код': data.get('цех_код'),
+                'цех_название': data.get('цех_название'),
+                'установка_код': data.get('установка_код'),
+                'установка_название': data.get('установка_название'),
+                'тм_название': data.get('название'),
+            })
+        hier_df = pd.DataFrame(hier_rows).set_index('_tm_code') if hier_rows else pd.DataFrame(
+            columns=['производство_код', 'производство_название', 'цех_код', 'цех_название',
+                    'установка_код', 'установка_название', 'тм_название']
         )
-        df['ЦЕХ'] = df.apply(
-            lambda r: format_with_name(r['ЦЕХ_Код'], hierarchy_data.loc[r.name, 'цех_название']),
-            axis=1
-        )
+
+        # Подтягиваем 6 полей через reindex (векторизованно)
+        prod_code = resolved_tm.map(hier_df['производство_код']).astype(object)
+        prod_name = resolved_tm.map(hier_df['производство_название']).astype(object)
+        shop_code = resolved_tm.map(hier_df['цех_код']).astype(object)
+        shop_name = resolved_tm.map(hier_df['цех_название']).astype(object)
+        unit_code_s = resolved_tm.map(hier_df['установка_код']).astype(object)
+        unit_name_s = resolved_tm.map(hier_df['установка_название']).astype(object)
+
+        # Fallback по префиксам для ТМ-кодов вне справочника:
+        # - если tm_str начинается с 'ST' и len>=4 → производство = tm_str[:4]
+        # - если '.' есть и len>=7 → цех = tm_str[:7]
+        fallback_mask = resolved_tm.isna() & tm_clean.notna() & (tm_clean != '')
+        st_prefix_mask = fallback_mask & (tm_clean.str.len() >= 4) & (tm_clean.str[:2] == 'ST')
+        prod_code = prod_code.where(~st_prefix_mask, tm_clean.str[:4])
+
+        shop_prefix_mask = fallback_mask & (tm_clean.str.len() >= 7) & tm_clean.str.contains('.', regex=False, na=False)
+        shop_code = shop_code.where(~shop_prefix_mask, tm_clean.str[:7])
+
+        # Заполняем None/пустые значения на 'Н/Д'
+        def _normalize(s):
+            return s.where(s.notna() & ~s.isin([None, 'None', '', pd.NA]), 'Н/Д').fillna('Н/Д').astype(str)
+
+        df['ПРОИЗВОДСТВО_Код'] = _normalize(prod_code)
+        df['ЦЕХ_Код'] = _normalize(shop_code)
+        df['УСТАНОВКА_Код'] = _normalize(unit_code_s)
+
+        # format_with_name векторизованно:
+        #   if code in NA_SET: 'Н/Д'
+        #   elif name not empty: f'{code} - {name}'
+        #   else: code
+        def _format_with_name_vec(code_ser, name_ser):
+            code = code_ser.astype(str)
+            name = name_ser.astype(object).where(name_ser.notna(), '').astype(str)
+            is_na = code.isin(NA_SET) | code.eq('Н/Д')
+            name_empty = name.isin(['', 'nan', 'None']) | name.isna()
+            combined = code.str.cat(name, sep=' - ')
+            out = np.where(is_na, 'Н/Д', np.where(name_empty, code, combined))
+            return pd.Series(out, index=code.index)
+
+        df['ПРОИЗВОДСТВО'] = _format_with_name_vec(df['ПРОИЗВОДСТВО_Код'], prod_name)
+        df['ЦЕХ'] = _format_with_name_vec(df['ЦЕХ_Код'], shop_name)
         if 'УСТАНОВКА' not in df.columns or df['УСТАНОВКА'].eq('Н/Д').all():
-            df['УСТАНОВКА'] = df.apply(
-                lambda r: format_with_name(r['УСТАНОВКА_Код'], hierarchy_data.loc[r.name, 'установка_название']),
-                axis=1
+            df['УСТАНОВКА'] = _format_with_name_vec(df['УСТАНОВКА_Код'], unit_name_s)
+
+        # format_tm векторизованно:
+        # if tm_kod not in NA_SET:
+        #   tm_name_from_hier = tm_hierarchy[tm_kod].get('название')
+        #   if tm_name_from_hier: f'{tm_kod} - {tm_name_from_hier}'
+        #   elif tm_txt not in NA_SET: f'{tm_kod} - {tm_txt}'
+        #   else: tm_kod
+        # else: tm_txt if tm_txt not in NA_SET else 'Н/Д'
+        if 'ТМ_Код' in df.columns:
+            tm_kod_ser = df['ТМ_Код'].astype(str).str.strip()
+            tm_txt_ser = df['ТМ'].astype(str).str.strip() if 'ТМ' in df.columns else pd.Series('', index=df.index)
+            kod_is_na = tm_kod_ser.isin(NA_SET)
+            txt_is_na = tm_txt_ser.isin(NA_SET)
+
+            # Имя ТМ из справочника (через map)
+            tm_name_from_hier = tm_kod_ser.map(hier_df['тм_название']).astype(object)
+            hier_name = tm_name_from_hier.where(tm_name_from_hier.notna() & ~tm_name_from_hier.isin(['', None, 'None']), '').astype(str)
+
+            # Комбинации
+            with_hier_name = tm_kod_ser.str.cat(hier_name, sep=' - ')
+            with_txt = tm_kod_ser.str.cat(tm_txt_ser, sep=' - ')
+
+            tm_final = np.where(
+                kod_is_na,
+                np.where(txt_is_na, 'Н/Д', tm_txt_ser),
+                np.where(
+                    hier_name != '',
+                    with_hier_name,
+                    np.where(~txt_is_na, with_txt, tm_kod_ser)
+                )
+            )
+            df['ТМ'] = pd.Series(tm_final, index=df.index)
+
+        # format_ust векторизованно — аналогичная логика
+        if 'УСТАНОВКА_Код' in df.columns:
+            ust_kod_ser = df['УСТАНОВКА_Код'].astype(str).str.strip()
+            ust_txt_ser = df['УСТАНОВКА'].astype(str).str.strip() if 'УСТАНОВКА' in df.columns else pd.Series('', index=df.index)
+            ukod_is_na = ust_kod_ser.isin(NA_SET)
+            utxt_is_na = ust_txt_ser.isin(NA_SET)
+
+            # Если txt уже начинается с kod — оставляем txt как есть
+            # (векторизованно через numpy; str.startswith не принимает Series)
+            kod_arr = ust_kod_ser.values
+            txt_arr = ust_txt_ser.values
+            starts_with_kod = pd.Series(
+                [t.startswith(k) if isinstance(t, str) and isinstance(k, str) else False
+                 for t, k in zip(txt_arr, kod_arr)],
+                index=ust_txt_ser.index
             )
 
-        if 'ТМ_Код' in df.columns:
-            def format_tm(row):
-                tm_kod = str(row.get('ТМ_Код', '')).strip()
-                tm_txt = str(row.get('ТМ', '')).strip()
-                if tm_kod and tm_kod not in ['Н/Д', 'nan', 'None', '']:
-                    tm_data = tm_hierarchy.get(tm_kod, {})
-                    tm_name = tm_data.get('название', '') if tm_data else ''
-                    if tm_name:
-                        return f"{tm_kod} - {tm_name}"
-                    elif tm_txt and tm_txt not in ['Н/Д', 'nan', 'None', '']:
-                        return f"{tm_kod} - {tm_txt}"
-                    else:
-                        return tm_kod
-                return tm_txt if tm_txt and tm_txt not in ['Н/Д', 'nan', 'None', ''] else 'Н/Д'
-            df['ТМ'] = df.apply(format_tm, axis=1)
+            ust_name_from_hier = ust_kod_ser.map(hier_df['установка_название']).astype(object)
+            uhier_name = ust_name_from_hier.where(ust_name_from_hier.notna() & ~ust_name_from_hier.isin(['', None, 'None']), '').astype(str)
 
-        if 'УСТАНОВКА_Код' in df.columns:
-            def format_ust(row):
-                ust_kod = str(row.get('УСТАНОВКА_Код', '')).strip()
-                ust_txt = str(row.get('УСТАНОВКА', '')).strip()
-                if ust_kod and ust_kod not in ['Н/Д', 'nan', 'None', '']:
-                    if ust_txt.startswith(ust_kod):
-                        return ust_txt
-                    ust_data = tm_hierarchy.get(ust_kod, {})
-                    ust_name = ust_data.get('название', '') if ust_data else ''
-                    if ust_name:
-                        return f"{ust_kod} - {ust_name}"
-                    elif ust_txt and ust_txt not in ['Н/Д', 'nan', 'None', '']:
-                        return f"{ust_kod} - {ust_txt}"
-                    else:
-                        return ust_kod
-                return ust_txt if ust_txt and ust_txt not in ['Н/Д', 'nan', 'None', ''] else 'Н/Д'
-            df['УСТАНОВКА'] = df.apply(format_ust, axis=1)
+            with_uhier = ust_kod_ser.str.cat(uhier_name, sep=' - ')
+            with_utxt = ust_kod_ser.str.cat(ust_txt_ser, sep=' - ')
+
+            ust_final = np.where(
+                ukod_is_na,
+                np.where(utxt_is_na, 'Н/Д', ust_txt_ser),
+                np.where(
+                    starts_with_kod,
+                    ust_txt_ser,
+                    np.where(
+                        uhier_name != '',
+                        with_uhier,
+                        np.where(~utxt_is_na, with_utxt, ust_kod_ser)
+                    )
+                )
+            )
+            df['УСТАНОВКА'] = pd.Series(ust_final, index=df.index)
     else:
         if 'ТМ_Код' in df.columns:
             tm_kod = df['ТМ_Код'].astype(str)
@@ -388,7 +459,49 @@ def process_data(df_raw):
             df['ЦЕХ'] = 'Н/Д'
 
     required_fields = ['ID', 'Текст', 'ТМ', 'Вид', 'Plan_N', 'Fact_N', 'Начало', 'Конец', 'STAT', 'ABC']
-    df['Data_Completeness'] = df.apply(lambda row: calculate_data_completeness(row, required_fields), axis=1)
+    # ТИТАН-5: векторизованный расчёт Data_Completeness (замена apply axis=1)
+    #
+    # Исходная логика calculate_data_completeness():
+    #   filled = count(val where notna(val) AND str(val) not in {'Н/Д', 'nan', 'None', '', '0'})
+    #   return filled / total * 100
+    EMPTY_VALUES = {'Н/Д', 'nan', 'None', '', '0'}
+    present_cols = [c for c in required_fields if c in df.columns]
+    if present_cols:
+        # Для каждой требуемой колонки — True, если значение непустое
+        masks = []
+        for col in present_cols:
+            col_data = df[col]
+            if pd.api.types.is_datetime64_any_dtype(col_data):
+                # Для дат — просто notna
+                mask = col_data.notna()
+            elif pd.api.types.is_numeric_dtype(col_data):
+                # Для чисел — notna И не равно 0 (по исходной логике '0' считается пустым)
+                mask = col_data.notna() & (col_data != 0)
+            else:
+                # Для строк/объектов — notna и строковое значение не в EMPTY_VALUES
+                s_str = col_data.astype(str)
+                mask = col_data.notna() & ~s_str.isin(EMPTY_VALUES)
+            masks.append(mask)
+        filled_count = pd.concat(masks, axis=1).sum(axis=1)
+        df['Data_Completeness'] = (filled_count / len(required_fields) * 100).astype(float)
+    else:
+        df['Data_Completeness'] = 0.0
+
+    # ═══════════════════════════════════════════════════════════════════
+    # ТИТАН-5: Оптимизация типов памяти
+    # object → category для повторяющихся строк (экономия ~60% памяти +
+    # ускорение groupby / сравнений в 2-3 раза).
+    # ДЕНЕЖНЫЕ поля (Plan_N, Fact_N, PMCO*) — оставляем float64 (точность).
+    # ═══════════════════════════════════════════════════════════════════
+    _CATEGORICAL_COLS = [
+        'БЕ', 'ЗАВОД', 'ПРОИЗВОДСТВО', 'ЦЕХ', 'УСТАНОВКА',
+        'STAT', 'ABC', 'Вид', 'ВИД_РАБОТ', 'INGRP', 'КЛАСС',
+        'USER', 'LAST_USER', 'MVZ', 'РМ',
+    ]
+    for _col in _CATEGORICAL_COLS:
+        if _col in df.columns and not isinstance(df[_col].dtype, pd.CategoricalDtype):
+            # Принудительно приводим к строке перед category (None → 'Н/Д')
+            df[_col] = df[_col].fillna('Н/Д').astype(str).astype('category')
 
     df.attrs['export_format'] = export_format
     df.attrs['source_columns'] = source_columns

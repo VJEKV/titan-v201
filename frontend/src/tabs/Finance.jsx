@@ -52,7 +52,7 @@ const shortMonth = (label) => {
 };
 
 export default function Finance() {
-  const { sessionId, filters, thresholds } = useFilters();
+  const { debouncedFilters, debouncedThresholds, sessionId, filters, thresholds } = useFilters();
   const { toggleOrder, toggleEO, isOrderStarred, isEOStarred } = useStarred();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -90,7 +90,7 @@ export default function Finance() {
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
-    apiGet('/api/tab/finance', { session_id: sessionId, filters, thresholds })
+    apiGet('/api/tab/finance', { session_id: sessionId, debouncedFilters, debouncedThresholds })
       .then(setData)
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -98,13 +98,13 @@ export default function Finance() {
     setCehExpanded(null); setCehOrders([]); setCehPage(1); setCehSort({ col: 'date_start', dir: 'desc' });
     setTmExpanded(null); setTmOrders([]); setTmPage(1); setTmSort({ col: 'date_start', dir: 'desc' });
     setRmExpanded(null); setRmOrders([]); setRmPage(1); setRmSort({ col: 'date_start', dir: 'desc' });
-  }, [sessionId, filters, thresholds]);
+  }, [sessionId, debouncedFilters, debouncedThresholds]);
 
   // --- Функции аккордеона ЦЕХ ---
   const fetchCehOrders = (name, page, sort = cehSort) => {
     setCehLoading(true);
     apiGet('/api/finance/orders', {
-      session_id: sessionId, filters, thresholds,
+      session_id: sessionId, debouncedFilters, debouncedThresholds,
       group_by: 'ceh', group_value: name, page, page_size: 20,
       sort_by: sort.col, sort_dir: sort.dir,
     })
@@ -126,7 +126,7 @@ export default function Finance() {
   const fetchTmOrders = (name, page, sort = tmSort) => {
     setTmLoading(true);
     apiGet('/api/finance/orders', {
-      session_id: sessionId, filters, thresholds,
+      session_id: sessionId, debouncedFilters, debouncedThresholds,
       group_by: 'tm', group_value: name, page, page_size: 20,
       sort_by: sort.col, sort_dir: sort.dir,
     })
@@ -146,12 +146,12 @@ export default function Finance() {
 
   const exportCehExcel = (name) => {
     apiDownload('/api/export/orders_excel', {
-      session_id: sessionId, filters, thresholds, group_by: 'ceh', group_value: name,
+      session_id: sessionId, debouncedFilters, debouncedThresholds, group_by: 'ceh', group_value: name,
     }).catch(() => alert('Ошибка при выгрузке Excel'));
   };
   const exportTmExcel = (name) => {
     apiDownload('/api/export/orders_excel', {
-      session_id: sessionId, filters, thresholds, group_by: 'tm', group_value: name,
+      session_id: sessionId, debouncedFilters, debouncedThresholds, group_by: 'tm', group_value: name,
     }).catch(() => alert('Ошибка при выгрузке Excel'));
   };
 
@@ -159,7 +159,7 @@ export default function Finance() {
   const fetchRmOrders = (name, page, sort = rmSort) => {
     setRmLoading(true);
     apiGet('/api/finance/orders', {
-      session_id: sessionId, filters, thresholds,
+      session_id: sessionId, debouncedFilters, debouncedThresholds,
       group_by: 'rm', group_value: name, page, page_size: 20,
       sort_by: sort.col, sort_dir: sort.dir,
     })
@@ -178,7 +178,7 @@ export default function Finance() {
   };
   const exportRmExcel = (name) => {
     apiDownload('/api/export/orders_excel', {
-      session_id: sessionId, filters, thresholds, group_by: 'rm', group_value: name,
+      session_id: sessionId, debouncedFilters, debouncedThresholds, group_by: 'rm', group_value: name,
     }).catch(() => alert('Ошибка при выгрузке Excel'));
   };
 

@@ -11,7 +11,7 @@ import ChartSettings, { useChartSettings } from '../components/ChartSettings';
 import DateFootnote from '../components/DateFootnote';
 
 export default function Quality() {
-  const { sessionId, filters, thresholds } = useFilters();
+  const { debouncedFilters, debouncedThresholds, sessionId, filters, thresholds } = useFilters();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const csBar = useChartSettings('q-bar');
@@ -21,9 +21,9 @@ export default function Quality() {
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
-    apiGet('/api/tab/quality', { session_id: sessionId, filters, thresholds })
+    apiGet('/api/tab/quality', { session_id: sessionId, debouncedFilters, debouncedThresholds })
       .then(setData).catch(() => {}).finally(() => setLoading(false));
-  }, [sessionId, filters, thresholds]);
+  }, [sessionId, debouncedFilters, debouncedThresholds]);
 
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;

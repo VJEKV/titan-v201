@@ -57,7 +57,7 @@ function mergeSeriesData(series) {
 }
 
 export default function Timeline() {
-  const { sessionId, filters, thresholds } = useFilters();
+  const { debouncedFilters, debouncedThresholds, sessionId, filters, thresholds } = useFilters();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const csCost = useChartSettings('tl-cost');
@@ -72,9 +72,9 @@ export default function Timeline() {
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
-    apiGet('/api/tab/timeline', { session_id: sessionId, filters, thresholds })
+    apiGet('/api/tab/timeline', { session_id: sessionId, debouncedFilters, debouncedThresholds })
       .then(setData).catch(() => {}).finally(() => setLoading(false));
-  }, [sessionId, filters, thresholds]);
+  }, [sessionId, debouncedFilters, debouncedThresholds]);
 
   if (loading) return <p style={{ color: C.muted }}>Загрузка...</p>;
   if (!data) return null;
